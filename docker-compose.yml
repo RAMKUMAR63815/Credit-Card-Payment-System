@@ -1,0 +1,97 @@
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: credit_card_mysql
+    restart: unless-stopped
+
+    environment:
+      MYSQL_DATABASE: credit_card_db
+      MYSQL_USER: credit_app
+      MYSQL_PASSWORD: credit_password
+      MYSQL_ROOT_PASSWORD: root_password
+
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+
+  django:
+    build:
+      context: ./django_backend
+      dockerfile: Dockerfile
+
+    container_name: credit_card_django
+    restart: unless-stopped
+
+    command: python manage.py runserver 0.0.0.0:8000
+
+    volumes:
+      - ./django_backend:/app
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      DB_NAME: credit_card_db
+      DB_USER: credit_app
+      DB_PASSWORD: credit_password
+      DB_HOST: mysql
+      DB_PORT: 3306
+
+    depends_on:
+      - mysql
+
+
+  fastapi:
+    build:
+      context: ./fastapi_backend
+      dockerfile: Dockerfile
+
+    container_name: credit_card_fastapi
+    restart: unless-stopped
+
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001
+
+    volumes:
+      - ./fastapi_backend:/app
+
+    ports:
+      - "8001:8001"
+
+    environment:
+      DB_NAME: credit_card_db
+      DB_USER: credit_app
+      DB_PASSWORD: credit_password
+      DB_HOST: mysql
+      DB_PORT: 3306
+
+    depends_on:
+      - mysql
+
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    container_name: credit_card_frontend
+    restart: unless-stopped
+
+    ports:
+      - "5173:5173"
+
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+    command: npm run dev -- --host 0.0.0.0
+
+    depends_on:
+      - django
+
+
+volumes:
+  mysql_data:

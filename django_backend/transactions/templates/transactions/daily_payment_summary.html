@@ -1,0 +1,70 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Payment Summary</title>
+
+    <link rel="stylesheet" href="{% static 'transactions/daily_payment_summary.css' %}">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>Daily Payment Summary</h1>
+
+        <p class="date-info">
+            Current Date: {{ current_date }}
+        </p>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Total Payments</th>
+                    <th>Successful</th>
+                    <th>Failed</th>
+                    <th>Pending</th>
+                    <th>Total Amount</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for item in summary %}
+                <!-- "summary-la data irundha loop execute pannu; data illa-na empty section execute pannu." -->
+
+                <tr>
+                    <td>{{ item.date }}</td>
+                    <td>{{ item.total_payments }}</td>
+                    <td>{{ item.successful_payments }}</td>
+                    <td>{{ item.failed_payments }}</td>
+                    <td>{{ item.pending_payments }}</td>
+                    <td>₹{{ item.total_amount|default:"0.00" }}</td>
+                </tr>
+
+                {% empty %}
+                <!-- execute when no data -->
+
+                <tr>
+                    <td colspan="6">
+                        <!-- colspan means how many columns this cell should cover. -->
+                        No payment data available.
+                    </td>
+                </tr>
+
+                {% endfor %}
+                <!-- "The for loop ends here." -->
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</body>
+
+</html>
