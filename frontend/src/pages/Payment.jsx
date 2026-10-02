@@ -13,6 +13,7 @@ function Payment() {
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
 
+  // Load saved cards
   useEffect(() => {
     const fetchCards = async () => {
       try {
@@ -34,7 +35,25 @@ function Payment() {
           }
         )
 
-        const data = await response.json()
+        const contentType =
+          response.headers.get("content-type") || ""
+
+        let data = {}
+
+        if (contentType.includes("application/json")) {
+          data = await response.json()
+        } else {
+          const text = await response.text()
+
+          console.error(
+            "Cards API returned non-JSON response:",
+            text
+          )
+
+          throw new Error(
+            `Cards API returned status ${response.status}`
+          )
+        }
 
         console.log("Cards response:", data)
 
@@ -43,19 +62,23 @@ function Payment() {
           localStorage.removeItem("refresh_token")
 
           setMessage("Session expired. Please login again.")
+
           navigate("/")
           return
         }
 
         if (!response.ok) {
           throw new Error(
-            data.error || "Failed to fetch cards"
+            data.error ||
+              data.detail ||
+              "Failed to fetch cards"
           )
         }
 
-        setCards(data)
+        setCards(Array.isArray(data) ? data : [])
       } catch (error) {
         console.error("Error fetching cards:", error)
+
         setMessage("Unable to load cards")
       } finally {
         setLoading(false)
@@ -65,6 +88,7 @@ function Payment() {
     fetchCards()
   }, [navigate])
 
+  // Make payment
   const handlePayment = async (event) => {
     event.preventDefault()
 
@@ -80,26 +104,78 @@ function Payment() {
         return
       }
 
-      const response = await fetch(
-        "http://localhost:8000/api/payments/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            card_id: cardId,
-            amount: amount,
-          }),
-        }
+      /*
+       * IMPORTANT:
+       * Django URL structure:
+       *
+       * config/urls.py
+       *   api/payments/
+       *
+       * transactions/urls.py
+       *   payments/
+       *
+       * Therefore the final URL is:
+       *
+       * /api/payments/payments/
+       */
+      const paymentUrl =
+        "http://localhost:8000/api/payments/payments/"
+
+      const response = await fetch(paymentUrl, {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+
+        body: JSON.stringify({
+          card_id: Number(cardId),
+          amount: amount,
+        }),
+      })
+
+      console.log("Payment URL:", response.url)
+      console.log(
+        "Payment status code:",
+        response.status
       )
 
-      const data = await response.json()
+      const contentType =
+        response.headers.get("content-type") || ""
+
+      let data = {}
+
+      /*
+       * Do not blindly call response.json().
+       *
+       * If Django returns an HTML 404/500 page,
+       * response.json() will throw:
+       *
+       * Unexpected token '<'
+       */
+      if (contentType.includes("application/json")) {
+        data = await response.json()
+      } else {
+        const text = await response.text()
+
+        console.error(
+          "Payment API returned non-JSON response:",
+          text
+        )
+
+        setMessage(
+          `Payment API returned an invalid response. HTTP ${response.status}`
+        )
+
+        setStatus("FAILED")
+
+        return
+      }
 
       console.log("Payment response:", data)
-      console.log("Payment status code:", response.status)
 
+      // JWT expired
       if (response.status === 401) {
         localStorage.removeItem("access_token")
         localStorage.removeItem("refresh_token")
@@ -111,30 +187,54 @@ function Payment() {
         return
       }
 
+      // FastAPI/payment service unavailable
       if (response.status === 503) {
         setMessage(
           "Payment service is unavailable. Please make sure FastAPI is running."
         )
+
         setStatus("FAILED")
+
         return
       }
 
+      // Any other API error
       if (!response.ok) {
         setMessage(
-          data.error || "Payment failed"
+          data.error ||
+            data.detail ||
+            data.message ||
+            "Payment failed"
         )
-        setStatus("FAILED")
+
+        setStatus(
+          data.status ||
+            data.transaction?.status ||
+            "FAILED"
+        )
+
         return
       }
 
+      /*
+       * Successful Django response.
+       *
+       * Your backend may return status in:
+       * data.transaction.status
+       * or data.status
+       */
       setMessage(
-        data.message || "Payment processed successfully"
+        data.message ||
+          "Payment processed successfully"
       )
 
       setStatus(
-        data.transaction?.status || "SUCCESS"
+        data.transaction?.status ||
+          data.status ||
+          "SUCCESS"
       )
 
+      // Clear form after successful request
       setAmount("")
       setCardId("")
     } catch (error) {
@@ -153,8 +253,8 @@ function Payment() {
   return (
     <div className="min-h-screen bg-gray-100">
 
+      {/* Navbar */}
       <nav className="bg-blue-600 text-white px-6 py-4 flex justify-between items-center">
-
         <h1 className="text-xl font-bold">
           Credit Card Payment System
         </h1>
@@ -165,9 +265,9 @@ function Payment() {
         >
           Dashboard
         </button>
-
       </nav>
 
+      {/* Main Content */}
       <div className="max-w-2xl mx-auto p-8">
 
         <h2 className="text-3xl font-bold">
@@ -180,11 +280,14 @@ function Payment() {
 
         <div className="bg-white p-6 rounded-xl shadow mt-6">
 
+          {/* Loading */}
           {loading ? (
             <p>
               Loading cards...
             </p>
           ) : cards.length === 0 ? (
+
+            /* No Cards */
             <div>
 
               <p className="text-gray-500">
@@ -200,8 +303,11 @@ function Payment() {
 
             </div>
           ) : (
+
+            /* Payment Form */
             <form onSubmit={handlePayment}>
 
+              {/* Card */}
               <div className="mb-5">
 
                 <label className="block mb-2 font-medium">
@@ -234,6 +340,7 @@ function Payment() {
 
               </div>
 
+              {/* Amount */}
               <div className="mb-5">
 
                 <label className="block mb-2 font-medium">
@@ -255,6 +362,7 @@ function Payment() {
 
               </div>
 
+              {/* Pay Button */}
               <button
                 type="submit"
                 disabled={paying}
@@ -268,6 +376,7 @@ function Payment() {
             </form>
           )}
 
+          {/* Message */}
           {message && (
             <div className="mt-6 p-4 rounded-lg bg-gray-100">
 
@@ -288,12 +397,9 @@ function Payment() {
           )}
 
         </div>
-
       </div>
-
     </div>
   )
 }
 
 export default Payment
-
