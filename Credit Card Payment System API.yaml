@@ -1,240 +1,546 @@
 openapi: 3.0.3
+
 info:
   title: Credit Card Payment System API
   version: 1.0.0
-  description: API documentation for the Credit Card Payment System
+  description: API documentation for the Credit Card Payment System.
+
+servers:
+  - url: http://localhost:8000
+    description: Django API Server
+
+tags:
+  - name: Authentication
+    description: User registration and JWT authentication
+  - name: Cards
+    description: Saved card management
+  - name: Payments
+    description: Payment processing and transaction history
+  - name: Admin
+    description: Administrator transaction operations
+
 paths:
-  /api/accounts/login/:
-    post:
-      operationId: accounts_login_create
-      description: |-
-        Takes a set of user credentials and returns an access and refresh JSON web
-        token pair to prove the authentication of those credentials.
-      tags:
-      - accounts
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TokenObtainPair'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/TokenObtainPair'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/TokenObtainPair'
-        required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TokenObtainPair'
-          description: ''
-  /api/accounts/logout/:
-    post:
-      operationId: accounts_logout_create
-      tags:
-      - accounts
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/accounts/me/:
-    get:
-      operationId: accounts_me_retrieve
-      tags:
-      - accounts
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          description: No response body
+
   /api/accounts/register/:
     post:
-      operationId: accounts_register_create
       tags:
-      - accounts
-      security:
-      - jwtAuth: []
-      - {}
-      responses:
-        '200':
-          description: No response body
-  /api/accounts/token/refresh/:
-    post:
-      operationId: accounts_token_refresh_create
-      description: |-
-        Takes a refresh type JSON web token and returns an access type JSON web
-        token if the refresh token is valid.
-      tags:
-      - accounts
+        - Authentication
+      summary: Register a new user
+      description: Creates a new user account.
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TokenRefresh'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/TokenRefresh'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/TokenRefresh'
-        required: true
+              $ref: '#/components/schemas/RegisterRequest'
       responses:
         '200':
+          description: User registered successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenRefresh'
-          description: ''
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Invalid registration data
+
+  /api/accounts/login/:
+    post:
+      tags:
+        - Authentication
+      summary: Login
+      description: Authenticates a user and returns access and refresh JWT tokens.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid username or password
+
+  /api/accounts/token/refresh/:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Returns a new access token using a valid refresh token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+      responses:
+        '200':
+          description: Access token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenResponse'
+        '401':
+          description: Invalid or expired refresh token
+
+  /api/accounts/me/:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Returns the authenticated user's information.
+      security:
+        - jwtAuth: []
+      responses:
+        '200':
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Authentication required
+
+  /api/accounts/logout/:
+    post:
+      tags:
+        - Authentication
+      summary: Logout
+      description: Logs out the authenticated user by blacklisting the refresh token.
+      security:
+        - jwtAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '200':
+          description: Logout successful
+        '400':
+          description: Invalid refresh token
+        '401':
+          description: Authentication required
+
   /api/cards/:
     post:
-      operationId: cards_create
       tags:
-      - cards
+        - Cards
+      summary: Add a card
+      description: Adds a card for the authenticated user. CVV is not stored.
       security:
-      - jwtAuth: []
+        - jwtAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCardRequest'
       responses:
         '200':
-          description: No response body
-  /api/cards/{card_id}/:
-    delete:
-      operationId: cards_destroy
-      parameters:
-      - in: path
-        name: card_id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - cards
-      security:
-      - jwtAuth: []
-      responses:
-        '204':
-          description: No response body
+          description: Card added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '400':
+          description: Invalid card information
+        '401':
+          description: Authentication required
+
   /api/cards/my-cards/:
     get:
-      operationId: cards_my_cards_retrieve
       tags:
-      - cards
+        - Cards
+      summary: Get my cards
+      description: Returns cards belonging to the authenticated user.
       security:
-      - jwtAuth: []
+        - jwtAuth: []
       responses:
         '200':
-          description: No response body
+          description: List of saved cards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Card'
+        '401':
+          description: Authentication required
+
+  /api/cards/{card_id}/:
+    delete:
+      tags:
+        - Cards
+      summary: Delete a card
+      description: Deletes a saved card belonging to the authenticated user.
+      security:
+        - jwtAuth: []
+      parameters:
+        - name: card_id
+          in: path
+          required: true
+          description: ID of the card to delete
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Card deleted successfully
+        '401':
+          description: Authentication required
+        '404':
+          description: Card not found
+
+  /api/payments/payments/:
+    post:
+      tags:
+        - Payments
+      summary: Make a payment
+      description: Creates a payment and processes it through the FastAPI payment service.
+      security:
+        - jwtAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '200':
+          description: Payment processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          description: Invalid payment information
+        '401':
+          description: Authentication required
+        '503':
+          description: Payment service unavailable
+
   /api/payments/history/:
     get:
-      operationId: payments_history_list
       tags:
-      - payments
+        - Payments
+      summary: Get transaction history
+      description: Returns the authenticated user's transactions with optional filters.
       security:
-      - jwtAuth: []
+        - jwtAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter by transaction status
+          schema:
+            type: string
+            enum:
+              - PENDING
+              - SUCCESS
+              - FAILED
+
+        - name: min_amount
+          in: query
+          required: false
+          description: Minimum transaction amount
+          schema:
+            type: number
+
+        - name: max_amount
+          in: query
+          required: false
+          description: Maximum transaction amount
+          schema:
+            type: number
+
+        - name: start_date
+          in: query
+          required: false
+          description: Transaction start date
+          schema:
+            type: string
+            format: date
+
+        - name: end_date
+          in: query
+          required: false
+          description: Transaction end date
+          schema:
+            type: string
+            format: date
+
       responses:
         '200':
+          description: Transaction history
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Transaction'
-          description: ''
-  /api/payments/payments/:
-    post:
-      operationId: payments_payments_create
-      tags:
-      - payments
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          description: No response body
+        '401':
+          description: Authentication required
+
   /api/payments/transactions/admin/export/:
     get:
-      operationId: payments_transactions_admin_export_retrieve
       tags:
-      - payments
+        - Admin
+      summary: Export transactions as CSV
+      description: Exports transaction records in CSV format for an administrator.
       security:
-      - jwtAuth: []
+        - jwtAuth: []
       responses:
         '200':
-          description: No response body
+          description: CSV file containing transaction records
+          content:
+            text/csv:
+              schema:
+                type: string
+        '401':
+          description: Authentication required
+        '403':
+          description: Administrator permission required
+
+  /api/admin/summary/:
+    get:
+      tags:
+        - Admin
+      summary: Daily payment summary
+      description: Displays the daily payment summary for administrators.
+      responses:
+        '200':
+          description: Daily payment summary page
+        '302':
+          description: Redirect to Django admin login when authentication is required
+
 components:
+
+  securitySchemes:
+
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
-    StatusEnum:
-      enum:
-      - PENDING
-      - SUCCESS
-      - FAILED
-      type: string
-      description: |-
-        * `PENDING` - Pending
-        * `SUCCESS` - Success
-        * `FAILED` - Failed
-    TokenObtainPair:
+
+    RegisterRequest:
       type: object
+      required:
+        - username
+        - email
+        - password
       properties:
         username:
           type: string
-          writeOnly: true
+          example: ramkumar
+        email:
+          type: string
+          format: email
+          example: ram@gmail.com
         password:
           type: string
-          writeOnly: true
-        access:
+          format: password
+          minLength: 8
+          example: Test@12345
+        first_name:
           type: string
-          readOnly: true
-        refresh:
+          example: Ram
+        last_name:
           type: string
-          readOnly: true
+          example: Kumar
+
+    RegisterResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: User registered successfully
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: ramkumar
+        email:
+          type: string
+          format: email
+          example: ram@gmail.com
+
+    LoginRequest:
+      type: object
       required:
-      - access
-      - password
-      - refresh
-      - username
-    TokenRefresh:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: ramkumar
+        password:
+          type: string
+          format: password
+          example: Test@12345
+
+    TokenResponse:
       type: object
       properties:
         access:
           type: string
-          readOnly: true
+          example: eyJhbGciOiJIUzI1NiIs...
         refresh:
           type: string
-          writeOnly: true
+          example: eyJhbGciOiJIUzI1NiIs...
+
+    TokenRefreshRequest:
+      type: object
       required:
-      - access
-      - refresh
+        - refresh
+      properties:
+        refresh:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIs...
+
+    AccessTokenResponse:
+      type: object
+      properties:
+        access:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIs...
+
+    LogoutRequest:
+      type: object
+      required:
+        - refresh
+      properties:
+        refresh:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIs...
+
+    AddCardRequest:
+      type: object
+      required:
+        - card_holder_name
+        - card_number
+        - cvv
+        - expiry_month
+        - expiry_year
+      properties:
+        card_holder_name:
+          type: string
+          example: Ram Kumar
+        card_number:
+          type: string
+          example: "4111111111111111"
+        cvv:
+          type: string
+          format: password
+          example: "123"
+        expiry_month:
+          type: integer
+          example: 12
+        expiry_year:
+          type: integer
+          example: 2030
+
+    Card:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        card_holder_name:
+          type: string
+          example: Ram Kumar
+        masked_card_number:
+          type: string
+          example: "**** **** **** 1111"
+        last_four:
+          type: string
+          example: "1111"
+        expiry_month:
+          type: integer
+          example: 12
+        expiry_year:
+          type: integer
+          example: 2030
+        created_at:
+          type: string
+          format: date-time
+
+    PaymentRequest:
+      type: object
+      required:
+        - card_id
+        - amount
+      properties:
+        card_id:
+          type: integer
+          example: 1
+        amount:
+          type: number
+          format: decimal
+          exclusiveMinimum: 0
+          example: 500.00
+
+    PaymentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        payment_id:
+          type: integer
+          nullable: true
+          example: 1
+        card_id:
+          type: integer
+          example: 1
+        amount:
+          type: number
+          example: 500.00
+        status:
+          type: string
+          enum:
+            - PENDING
+            - SUCCESS
+            - FAILED
+          example: SUCCESS
+
     Transaction:
       type: object
       properties:
         id:
           type: integer
-          readOnly: true
+          example: 1
         card:
           type: integer
           nullable: true
+          example: 1
         amount:
           type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          example: "500.00"
         status:
-          $ref: '#/components/schemas/StatusEnum'
+          type: string
+          enum:
+            - PENDING
+            - SUCCESS
+            - FAILED
+          example: SUCCESS
         payment_id:
           type: integer
-          maximum: 2147483647
-          minimum: -2147483648
           nullable: true
+          example: 1
         created_at:
           type: string
           format: date-time
-          readOnly: true
-      required:
-      - amount
-      - created_at
-      - id
-  securitySchemes:
-    jwtAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
