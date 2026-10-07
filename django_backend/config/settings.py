@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 import os 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -144,6 +145,8 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+
+
 #set django use this as default and "When an API request comes in, use JWT to check whether the user is authenticated."
 
 STATIC_URL = "static/"

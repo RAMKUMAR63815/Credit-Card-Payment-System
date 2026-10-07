@@ -1,0 +1,26 @@
+# Environment variables / secrets
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+.venv/
+
+# React dependencies
+node_modules/
+
+# React build output
+dist/
+
+# Django database/cache files
+*.sqlite3
+
+# IDE files
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -4,6 +4,9 @@ from .database import Base, engine ,get_db
 from . import models
 from .schemas import PaymentCreate
 from sqlalchemy.orm import Session
+from app.routes.dashboard import router as dashboard_router
+# Import CORS middleware to allow frontend requests.
+from fastapi.middleware.cors import CORSMiddleware
 
 
 Base.metadata.create_all(bind=engine)#na, namma SQLAlchemy-la define pannirukkura models/table structure-ah eduthu, MySQL database-la table illa-na create pannu nu solrom.
@@ -14,7 +17,26 @@ app = FastAPI(
     description="Payment processing service",
     version="1.0.0"
 )
+# Allow requests from the React frontend.
+app.add_middleware(
+    CORSMiddleware,
 
+    # Allow React running on port 5173.
+    allow_origins=["http://localhost:5173"],
+
+    # Allow cookies/authentication credentials if required.
+    allow_credentials=True,
+
+    # Allow GET, POST, PUT, DELETE, etc.
+    allow_methods=["*"],
+
+    # Allow Authorization and other request headers.
+    allow_headers=["*"],
+)
+
+
+
+app.include_router(dashboard_router)
 
 @app.get("/")
 def root():
@@ -59,3 +81,4 @@ def create_payment(
             "status": new_payment.status,
         }
     }
+   

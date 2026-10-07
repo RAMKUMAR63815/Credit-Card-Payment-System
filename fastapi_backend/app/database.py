@@ -75,7 +75,7 @@ Base = declarative_base()
 
 
 # Dependency function used by FastAPI routes
-def get_db():
+def get_db():# temporary cpnn used to perform sql curd operation like transactions = db.query(Transaction).all()
 
     # Create a new database session
     db = SessionLocal()
@@ -89,3 +89,16 @@ def get_db():
         # Close the database session after the request is completed
         # This prevents database connections from remaining open
         db.close()
+
+# yield db
+#    ↓
+# PAUSE 
+#    ↓
+# FastAPI uses db
+#    ↓
+# API finishes
+#    ↓
+# RESUME
+#    ↓
+# finally:
+#     db.close()

@@ -1,0 +1,192 @@
+docker :
+
+
+create docker-compose.yml
+inside all frontend and back connect service and container  are there
+
+create service for all MySQL,front,back-django,back-fastapi  ->activate servces docker compose up -d    
+
+
+
+
+Django REST Framework
+    ↓
+Create REST APIs
+
+SimpleJWT
+    ↓
+JWT authentication
+
+CORS
+    ↓
+Allow React to communicate with Django
+
+mysqlclient
+    ↓
+Connect Django to MySQL
+
+
+"Why did you create a Dockerfile for Django?"
+
+You can answer:
+
+"The Dockerfile defines the environment required to run my Django application. It installs the required Python and system dependencies, copies the application code, exposes the application port, and specifies the command to start Django. This makes the application environment reproducible across different machines
+
+
+docker run --rm -v "${PWD}\django_backend:/app" -w /app python:3.12-slim sh -c "pip install Django==5.2.6 && django-admin startproject config ."
+Indha command Docker container use panni Django project create panna use pannrom. Local machine-la Python/Django install panna thevai illa.
+
+
+A Docker image is a ready-made package/template that contains everything needed to create a container.
+Image = blueprint/template
+Container = running instance created from that image
+
+
+docker compose build django-buiold dango before docker compose up -d    
+"Django service-ku Docker image-a build/rebuild pannu.
+
+
+
+python manage.py migrate:
+"Database-la Django-ku required tables create/update pannu.""Database-la Django-ku required tables create/update pannu."
+Your PC
+   │
+   │ docker compose exec django
+   ↓
+Django container
+   │
+   │ python manage.py migrate
+   ↓
+Django Migration System
+   │
+   │ DB_HOST=mysql
+   ↓
+MySQL container
+   │
+   ↓
+credit_card_db
+   │
+   ↓
+Create/update database tables
+
+docker compose exec django python manage.py startapp cards- to create folder
+
+outsanding :User login pannumbodhu generate aagura Refresh Token-ah Simple JWT track pannura record dhaan OutstandingToken.
+
+
+
+create react --npm create vite@latest frontend -- --template react -->creates the frontend folder and React project files"npm use panni, latest Vite project generator-a run panni, frontend folder-kulla oru React JavaScript project create pannu."
+
+docker run --rm -it -v "${PWD}:/app" -w /app node:22-alpine sh-->It starts a temporary Docker container using Node.js 22.
+
+
+npm run dev -- --host 0.0.0.0 na:
+
+"Docker container-kulla Vite React server-ah start panni, outside-la irundhu access panna allow pannu."
+
+
+
+docker compose up -d --build frontend
+
+Check:
+
+docker compose ps
+
+docker compose exec frontend sh -->aap#
+npm install tailwindcss @tailwindcss/vite
+shadow-lg ->box-shadow
+rounded-xl->border-radius: large;
+min-h-screen → Full screen height
+bg-gray-100 → Light gray background
+flex → Flexbox enable
+items-center → Vertical center
+justify-center → Horizontal center
+bg-white → White card
+p-10 → Padding
+rounded-xl → Rounded corners
+shadow-lg → Shadow effect
+text-center → Center align text
+text-3xl → Large text
+font-bold → Bold text
+text-blue-600 → Blue color
+mt-4 → Top margin
+text-gray-600 → Gray text color
+
+
+react frontent login:
+Indha Login component username/password-a user kitta vaangi, Django API-ku fetch() moolama send panni, login success aana JWT access & refresh token-a localStorage-la save pannitu, Tailwind CSS use panni login form-a display pannudhu
+
+useeffect-//Component load aagumbodhu execute aaga vendiya code inga ezhuthuvom
+  
+}, [])//na component first time load aana udane fetchUser() function-a oru thadavai mattum execute pannu nu React-kku solluradhu.
+
+
+  {cards.map((card) => (//"cards array-la irukkura each card-a one by one eduthu, JSX create pannu."
+                    <option
+                      key={card.id}//ndha option endha card?" nu identify panna key use aagum.
+                      value={card.id}//User option select pannumbodhu, card ID value-aa use aagum.
+                    >
+                      {card.masked_card_number}
+
+
+db dump -docker exec credit_card_mysql mysqldump --no-tablespaces -u credit_app -pcredit_password credit_card_db > database\credit_card_db.sql
+
+- create db backup comtsain all table info
+
+
+setup-documentation:
+--------------------
+
+# Credit Card Payment System
+
+## Tech Stack
+- React + Tailwind CSS
+- Django REST Framework
+- FastAPI
+- MySQL
+- Docker
+
+## Setup Instructions
+
+### 1. Clone the repository
+
+git clone <your-github-repository>
+
+### 2. Go to project folder
+
+cd credit-card-payment-system
+
+### 3. Start Docker
+
+docker compose up -d --build
+
+### 4. Run Django migrations
+
+docker compose exec django python manage.py migrate
+
+### 5. Create admin user
+
+docker compose exec django python manage.py createsuperuser
+
+### 6. Application URLs
+
+Frontend:
+http://localhost:5173
+
+Django:
+http://localhost:8000
+
+Django Admin:
+http://localhost:8000/admin/
+
+FastAPI Swagger:
+http://localhost:8001/docs
+
+		"_exporter_id": "57363751",
+		"_collection_link": "https://ramcse63815-1904097.postman.co/workspace/Ram-Kumar's-Workspace~20a1acae-9f19-4df2-899f-19e0f4cfa4bb/collection/57363751-c56dc5de-5ef6-4fce-abd4-13b3c152d0b4?action=share&source=collection_link&creator=57363751"
+
+
+
+db:
+usernme: credit_app
+pss:credit_password

@@ -25,5 +25,11 @@ class Card(models.Model):#Django's built-in base class
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    credit_limit = models.DecimalField(
+    max_digits=12,
+    decimal_places=2,
+    default=50000.00
+    )
+
     def __str__(self):#Django Admin-la object-a display pannumbodhu human-readable name kaatta use pannuvom.
         return f"{self.card_holder_name} - ****{self.last_four}"

@@ -4,13 +4,16 @@
     "name": "Credit Card Payment System API",
     "description": "Postman collection for Credit Card Payment System - Django, FastAPI and MySQL",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-	"_exporter_id": "57363751",
-	"_collection_link": "https://ramcse63815-1904097.postman.co/workspace/Ram-Kumar's-Workspace~20a1acae-9f19-4df2-899f-19e0f4cfa4bb/collection/57363751-c56dc5de-5ef6-4fce-abd4-13b3c152d0b4?action=share&source=collection_link&creator=57363751"
+    "_exporter_id": "57363751",
+    "_collection_link": "https://ramcse63815-1904097.postman.co/workspace/Ram-Kumar's-Workspace~20a1acae-9f19-4df2-899f-19e0f4cfa4bb/collection/57363751-c56dc5de-5ef6-4fce-abd4-13b3c152d0b4?action=share&source=collection_link&creator=57363751"
   },
+
   "item": [
+
     {
       "name": "Authentication",
       "item": [
+
         {
           "name": "Register",
           "request": {
@@ -40,6 +43,7 @@
           },
           "response": []
         },
+
         {
           "name": "Login",
           "event": [
@@ -88,6 +92,7 @@
           },
           "response": []
         },
+
         {
           "name": "Me",
           "request": {
@@ -113,6 +118,7 @@
           },
           "response": []
         },
+
         {
           "name": "Refresh Token",
           "request": {
@@ -143,6 +149,7 @@
           },
           "response": []
         },
+
         {
           "name": "Logout",
           "request": {
@@ -176,11 +183,14 @@
           },
           "response": []
         }
+
       ]
     },
+
     {
       "name": "Cards",
       "item": [
+
         {
           "name": "Add Card",
           "request": {
@@ -213,6 +223,7 @@
           },
           "response": []
         },
+
         {
           "name": "My Cards",
           "request": {
@@ -238,6 +249,7 @@
           },
           "response": []
         },
+
         {
           "name": "Delete Card",
           "request": {
@@ -263,11 +275,14 @@
           },
           "response": []
         }
+
       ]
     },
+
     {
       "name": "Payments",
       "item": [
+
         {
           "name": "Make Payment - SUCCESS Test",
           "request": {
@@ -301,6 +316,7 @@
           },
           "response": []
         },
+
         {
           "name": "Make Payment - FAILED Test",
           "request": {
@@ -334,6 +350,7 @@
           },
           "response": []
         },
+
         {
           "name": "FastAPI Payment Direct",
           "request": {
@@ -361,11 +378,14 @@
           },
           "response": []
         }
+
       ]
     },
+
     {
       "name": "Transactions",
       "item": [
+
         {
           "name": "Transaction History",
           "request": {
@@ -391,6 +411,7 @@
           },
           "response": []
         },
+
         {
           "name": "Test SUCCESS Filter",
           "request": {
@@ -422,6 +443,7 @@
           },
           "response": []
         },
+
         {
           "name": "Test FAILED Filter",
           "request": {
@@ -453,6 +475,7 @@
           },
           "response": []
         },
+
         {
           "name": "Test Amount Filter",
           "request": {
@@ -488,6 +511,7 @@
           },
           "response": []
         },
+
         {
           "name": "Transaction By Date",
           "request": {
@@ -523,11 +547,78 @@
           },
           "response": []
         }
+
       ]
     },
+
+    {
+      "name": "Dashboard",
+      "item": [
+
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fastapi_url}}/dashboard/summary",
+              "host": [
+                "{{fastapi_url}}"
+              ],
+              "path": [
+                "dashboard",
+                "summary"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Successful Dashboard Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{fastapi_url}}/dashboard/summary",
+                  "host": [
+                    "{{fastapi_url}}"
+                  ],
+                  "path": [
+                    "dashboard",
+                    "summary"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n    \"total_transactions\": 3,\n    \"total_amount_spent\": \"26500.00\",\n    \"current_month_spending\": \"26500.00\",\n    \"available_credit_limit\": \"173500.00\",\n    \"last_5_transactions\": [\n        {\n            \"amount\": \"4001.00\",\n            \"masked_card_number\": \"**** **** **** 7654\",\n            \"date\": \"2026-10-07T08:33:49.320772\",\n            \"status\": \"FAILED\"\n        },\n        {\n            \"amount\": \"25000.00\",\n            \"masked_card_number\": \"**** **** **** 3344\",\n            \"date\": \"2026-10-07T08:33:39.568309\",\n            \"status\": \"SUCCESS\"\n        },\n        {\n            \"amount\": \"1000.00\",\n            \"masked_card_number\": \"**** **** **** 8543\",\n            \"date\": \"2026-10-07T08:33:29.819466\",\n            \"status\": \"SUCCESS\"\n        },\n        {\n            \"amount\": \"501.00\",\n            \"masked_card_number\": \"**** **** **** 2424\",\n            \"date\": \"2026-10-05T04:26:40.032995\",\n            \"status\": \"FAILED\"\n        },\n        {\n            \"amount\": \"500.00\",\n            \"masked_card_number\": \"**** **** **** 7654\",\n            \"date\": \"2026-10-05T04:26:21.569246\",\n            \"status\": \"SUCCESS\"\n        }\n    ]\n}"
+            }
+          ]
+        }
+
+      ]
+    },
+
     {
       "name": "Admin",
       "item": [
+
         {
           "name": "Get Admin JWT",
           "event": [
@@ -576,6 +667,7 @@
           },
           "response": []
         },
+
         {
           "name": "Admin CSV Export",
           "request": {
@@ -603,6 +695,7 @@
           },
           "response": []
         },
+
         {
           "name": "Daily Payment Summary",
           "request": {
@@ -623,6 +716,7 @@
           },
           "response": []
         },
+
         {
           "name": "Django Admin",
           "request": {
@@ -641,11 +735,14 @@
           },
           "response": []
         }
+
       ]
     },
+
     {
       "name": "Documentation",
       "item": [
+
         {
           "name": "Django Swagger",
           "request": {
@@ -665,6 +762,7 @@
           },
           "response": []
         },
+
         {
           "name": "Django OpenAPI Schema",
           "request": {
@@ -684,6 +782,7 @@
           },
           "response": []
         },
+
         {
           "name": "FastAPI Swagger",
           "request": {
@@ -701,6 +800,7 @@
           },
           "response": []
         },
+
         {
           "name": "FastAPI ReDoc",
           "request": {
@@ -718,9 +818,12 @@
           },
           "response": []
         }
+
       ]
     }
+
   ],
+
   "variable": [
     {
       "key": "base_url",
