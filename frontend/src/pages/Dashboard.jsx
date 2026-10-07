@@ -129,8 +129,9 @@ function Dashboard() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
-      )
+        })
+      await new Promise((resolve) =>setTimeout(resolve, 3000)// Temporary delay for testing
+    )
 
 
       // Check specifically for an expired or invalid JWT.
