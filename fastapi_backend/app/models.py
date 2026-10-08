@@ -34,6 +34,7 @@ class Card(Base):
     user_id = Column(Integer, nullable=False)
     masked_card_number = Column(String(19), nullable=False)
     credit_limit = Column(Numeric(12, 2), nullable=False, default=50000.00)
+    
 
 
 class Transaction(Base):

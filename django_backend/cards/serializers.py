@@ -72,3 +72,28 @@ class CardSerializer(serializers.ModelSerializer):#django modela request/request
         )
 
         return card
+        
+class AdminCardSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(
+        source="user.username",
+        read_only=True
+    )
+
+    class Meta:
+        model = Card
+        fields = [
+            "id",
+            "username",
+            "masked_card_number",
+            "last_four",
+            "credit_limit",
+            "is_blocked",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "username",
+            "masked_card_number",
+            "last_four",
+            "created_at",
+        ]

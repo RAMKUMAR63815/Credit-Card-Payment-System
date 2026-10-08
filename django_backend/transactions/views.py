@@ -3,7 +3,7 @@ import csv
 
 # Import requests to send an HTTP request from Django to FastAPI
 import requests
-
+from notifications.services import (send_high_transaction_alert, send_low_credit_alert,)
 
 # Import Django admin module
 from django.contrib import admin
@@ -200,6 +200,7 @@ class PaymentView(APIView):
             # Save FAILED status
             django_transaction.save()
 
+
             # Return error response
             return Response(
                 {
@@ -227,6 +228,33 @@ class PaymentView(APIView):
 
         # Save updated transaction into database
         django_transaction.save()
+        
+        # =========================================================
+        # Successful Payment - Update Available Credit
+        # =========================================================
+
+        # Continue only if the payment was successful
+        if django_transaction.status == "SUCCESS":
+
+            # Reduce the available credit by the payment amount
+            card.available_credit -= django_transaction.amount
+
+            # Save the updated available credit in the database
+            card.save()
+
+            # Check whether available credit is below 10%
+            check_low_credit_alert(card)
+
+
+        # =========================================================
+        # High Transaction Alert
+        # =========================================================
+
+        # Check whether the transaction amount is greater than 5000
+        if ( django_transaction.status == "SUCCESS" and django_transaction.amount > 5000):
+
+            # Send an email alert to the transaction owner
+            send_high_transaction_alert(django_transaction.user,django_transaction.amount)
 
         # Send successful response back to React
         return Response(
@@ -254,7 +282,6 @@ class PaymentView(APIView):
             # 200 means successful request
             status=status.HTTP_200_OK
         )
-
 
 # =========================================================
 # Transaction History

@@ -220,16 +220,11 @@ function AdminDashboard() {
             </h3>
 
             <p className="text-gray-500 mt-3">
-              View saved cards
+              Manage customer cards, block/unblock cards and update credit limits.
             </p>
 
             <button
-              onClick={() =>
-                window.open(
-                  "http://localhost:8000/admin/cards/card/",
-                  "_blank"
-                )
-              }
+              onClick={() => navigate("/admin/cards")}
               className="mt-5 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium"
             >
               Manage Cards

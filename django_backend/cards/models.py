@@ -30,6 +30,8 @@ class Card(models.Model):#Django's built-in base class
     decimal_places=2,
     default=50000.00
     )
-
+    is_blocked = models.BooleanField(
+    default=False
+    )
     def __str__(self):#Django Admin-la object-a display pannumbodhu human-readable name kaatta use pannuvom.
         return f"{self.card_holder_name} - ****{self.last_four}"

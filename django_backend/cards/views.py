@@ -1,7 +1,7 @@
 from rest_framework import status
 # HTTP status codes like 201, 400
 
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,  IsAdminUser
 # Only logged-in users can access this API
 
 from rest_framework.response import Response
@@ -15,6 +15,12 @@ from .serializers import CardSerializer
 # Import CardSerializer to validate and process card data
 
 from .models import Card
+
+from django.shortcuts import get_object_or_404
+
+from notifications.services import send_card_blocked_alert
+
+from .serializers import AdminCardSerializer
 
 
 class CardCreateView(APIView):
@@ -95,3 +101,129 @@ class CardDeleteView(APIView):
             {"message": "Card deleted successfully"},
             status=status.HTTP_200_OK
         )
+class AdminBlockCardView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, card_id):#when someone sends a POST request to this API, Django finds the card using the card_id from the URL.
+        try:
+            card = Card.objects.select_related(
+                "user"
+            ).get(id=card_id)
+
+        except Card.DoesNotExist:
+            return Response(
+                {"detail": "Card not found."},
+                status=404
+            )
+
+        card.is_blocked = False
+
+        card.save(
+            update_fields=["is_blocked"]
+        )
+
+        return Response({
+            "message":
+                "Card unblocked successfully."
+        })
+
+
+class AdminCardListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        cards = (
+            Card.objects
+            .select_related("user")
+            .order_by("-created_at")
+        )
+
+        serializer = AdminCardSerializer(
+            cards,
+            many=True
+        )
+
+        return Response(
+            serializer.data
+        )
+
+class AdminUnblockCardView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, card_id):
+        try:
+            card = Card.objects.select_related(
+                "user"
+            ).get(id=card_id)
+
+        except Card.DoesNotExist:
+            return Response(
+                {"detail": "Card not found."},
+                status=404
+            )
+
+        card.is_blocked = False
+
+        card.save(
+            update_fields=["is_blocked"]
+        )
+
+        return Response({
+            "message":
+                "Card unblocked successfully."
+        })
+
+class AdminUpdateCreditLimitView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, card_id):
+        try:
+            card = Card.objects.get(
+                id=card_id
+            )
+
+        except Card.DoesNotExist:
+            return Response(
+                {"detail": "Card not found."},
+                status=404
+            )
+
+        credit_limit = request.data.get(
+            "credit_limit"
+        )
+
+        try:
+            credit_limit = float(
+                credit_limit
+            )
+
+        except (TypeError, ValueError):
+            return Response(
+                {
+                    "detail":
+                    "Invalid credit limit."
+                },
+                status=400
+            )
+
+        if credit_limit <= 0:
+            return Response(
+                {
+                    "detail":
+                    "Credit limit must be greater than 0."
+                },
+                status=400
+            )
+
+        card.credit_limit = credit_limit
+
+        card.save(
+            update_fields=["credit_limit"]
+        )
+
+        return Response({
+            "message":
+                "Credit limit updated successfully.",
+            "credit_limit":
+                card.credit_limit,
+        })
