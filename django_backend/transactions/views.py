@@ -3,7 +3,14 @@ import csv
 
 # Import requests to send an HTTP request from Django to FastAPI
 import requests
-from notifications.services import (send_high_transaction_alert, send_low_credit_alert,)
+
+from notifications.services import (
+    send_high_transaction_alert,
+    send_low_credit_alert,
+)
+
+# Import Decimal for accurate money calculations
+from decimal import Decimal
 
 # Import Django admin module
 from django.contrib import admin
@@ -56,6 +63,9 @@ from .serializers import TransactionSerializer
 # Import Card model to check whether the selected card belongs to the logged-in user
 from cards.models import Card
 
+# Import low credit alert function
+from notifications.services import check_low_credit_alert
+
 
 # =========================================================
 # Payment Processing
@@ -89,7 +99,10 @@ class PaymentView(APIView):
 
         # Try to convert the amount into a number
         try:
-            amount = float(amount)
+
+            # Convert amount to Decimal
+            # Decimal is safer and more accurate for money
+            amount = Decimal(str(amount))
 
             # Payment amount must be greater than zero
             if amount <= 0:
@@ -104,6 +117,7 @@ class PaymentView(APIView):
 
         # Handle invalid values such as "abc"
         except (TypeError, ValueError):
+
             return Response(
                 {
                     "error": "Invalid amount"
@@ -116,6 +130,7 @@ class PaymentView(APIView):
         # Check whether the card exists
         # AND belongs to the currently logged-in user
         try:
+
             card = Card.objects.get(
                 id=card_id,
                 user=request.user
@@ -123,6 +138,7 @@ class PaymentView(APIView):
 
         # If card does not exist or belongs to another user
         except Card.DoesNotExist:
+
             return Response(
                 {
                     "error": "Card not found or does not belong to the user"
@@ -155,11 +171,14 @@ class PaymentView(APIView):
             "card_id": card_id,
 
             # Send payment amount
-            "amount": amount
+            # Convert Decimal to string because JSON does not
+            # directly support Python Decimal objects
+            "amount": str(amount)
         }
 
         # Try to send payment request from Django to FastAPI
         try:
+
             response = requests.post(
 
                 # FastAPI URL
@@ -200,7 +219,6 @@ class PaymentView(APIView):
             # Save FAILED status
             django_transaction.save()
 
-
             # Return error response
             return Response(
                 {
@@ -228,7 +246,7 @@ class PaymentView(APIView):
 
         # Save updated transaction into database
         django_transaction.save()
-        
+
         # =========================================================
         # Successful Payment - Update Available Credit
         # =========================================================
@@ -237,24 +255,33 @@ class PaymentView(APIView):
         if django_transaction.status == "SUCCESS":
 
             # Reduce the available credit by the payment amount
+            # Both values are Decimal, so this calculation is safe
             card.available_credit -= django_transaction.amount
 
-            # Save the updated available credit in the database
-            card.save()
+            # Save only the available_credit field
+            card.save(
+                update_fields=["available_credit"]
+            )
 
             # Check whether available credit is below 10%
             check_low_credit_alert(card)
-
 
         # =========================================================
         # High Transaction Alert
         # =========================================================
 
         # Check whether the transaction amount is greater than 5000
-        if ( django_transaction.status == "SUCCESS" and django_transaction.amount > 5000):
+        # Decimal("5000") is used because amount is a Decimal
+        if (
+            django_transaction.status == "SUCCESS"
+            and django_transaction.amount > Decimal("5000")
+        ):
 
             # Send an email alert to the transaction owner
-            send_high_transaction_alert(django_transaction.user,django_transaction.amount)
+            send_high_transaction_alert(
+                django_transaction.user,
+                django_transaction.amount
+            )
 
         # Send successful response back to React
         return Response(
@@ -282,6 +309,7 @@ class PaymentView(APIView):
             # 200 means successful request
             status=status.HTTP_200_OK
         )
+
 
 # =========================================================
 # Transaction History
@@ -440,7 +468,7 @@ class TransactionCSVExportView(APIView):
 
 
 # =========================================================
-# Daily Payment Summary
+# Daily Payment Summary - HTML PAGE
 # =========================================================
 
 # Only Django staff/admin users can access this page
@@ -518,3 +546,116 @@ def daily_payment_summary(request):
             "current_date": timezone.localdate(),
         }
     )
+
+
+# =========================================================
+# Admin Payment Summary - JSON API
+# =========================================================
+
+# This API is used by the React Admin Dashboard
+class AdminPaymentSummaryAPIView(APIView):
+
+    # Only admin/staff users can access this API
+    # JWT authentication is handled by DRF
+    permission_classes = [IsAdminUser]
+
+    # Handle GET requests
+    def get(self, request):
+
+        # -----------------------------------------------------
+        # TOTAL TRANSACTIONS
+        # -----------------------------------------------------
+
+        # Count all transactions
+        total_transactions = Transaction.objects.count()
+
+        # -----------------------------------------------------
+        # TOTAL AMOUNT
+        # -----------------------------------------------------
+
+        # Calculate the total amount of all transactions
+        total_amount = (
+            Transaction.objects.aggregate(
+                total=Sum("amount")
+            )["total"]
+            or Decimal("0.00")
+        )
+
+        # -----------------------------------------------------
+        # SUCCESSFUL TRANSACTIONS
+        # -----------------------------------------------------
+
+        successful_transactions = Transaction.objects.filter(
+            status="SUCCESS"
+        ).count()
+
+        # -----------------------------------------------------
+        # FAILED TRANSACTIONS
+        # -----------------------------------------------------
+
+        failed_transactions = Transaction.objects.filter(
+            status="FAILED"
+        ).count()
+
+        # -----------------------------------------------------
+        # RECENT TRANSACTIONS
+        # -----------------------------------------------------
+
+        # Get the latest five transactions
+        recent_transactions = (
+            Transaction.objects
+            .select_related("user", "card")
+            .order_by("-created_at")[:5]
+        )
+
+        # Create an empty list
+        # We will add transaction information to this list
+        recent_data = []
+
+        # Loop through the latest transactions
+        for transaction in recent_transactions:
+
+            # Add transaction information
+            recent_data.append(
+                {
+                    # Django transaction ID
+                    "id": transaction.id,
+
+                    # FastAPI payment ID
+                    "payment_id": transaction.payment_id,
+
+                    # Convert Decimal to string
+                    # so it can safely be returned as JSON
+                    "amount": str(transaction.amount),
+
+                    # SUCCESS / FAILED / PENDING
+                    "status": transaction.status,
+
+                    # Transaction date and time
+                    "created_at": transaction.created_at,
+
+                    # Username of the user
+                    "username": transaction.user.username,
+                }
+            )
+
+        # -----------------------------------------------------
+        # RETURN JSON RESPONSE
+        # -----------------------------------------------------
+
+        return Response(
+            {
+                "total_transactions": total_transactions,
+
+                "total_amount": str(total_amount),
+
+                "successful_transactions": successful_transactions,
+
+                "failed_transactions": failed_transactions,
+
+                "recent_transactions": recent_data,
+            },
+
+            # HTTP 200 = successful request
+            status=status.HTTP_200_OK
+        )

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import CardCreateView, MyCardsView, CardDeleteView
+from .views import CardCreateView, MyCardsView, CardDeleteView,  AdminCardListView,AdminBlockCardView,AdminUnblockCardView,AdminUpdateCreditLimitView
 
 urlpatterns = [
     path("", CardCreateView.as_view(), name="card-create"),

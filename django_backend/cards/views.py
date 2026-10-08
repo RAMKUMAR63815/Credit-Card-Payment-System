@@ -104,7 +104,9 @@ class CardDeleteView(APIView):
 class AdminBlockCardView(APIView):
     permission_classes = [IsAdminUser]
 
-    def post(self, request, card_id):#when someone sends a POST request to this API, Django finds the card using the card_id from the URL.
+    def post(self, request, card_id):
+        # Find the card using the card ID from the URL.
+        # select_related("user") also loads the card owner.
         try:
             card = Card.objects.select_related(
                 "user"
@@ -113,21 +115,38 @@ class AdminBlockCardView(APIView):
         except Card.DoesNotExist:
             return Response(
                 {"detail": "Card not found."},
-                status=404
+                status=status.HTTP_404_NOT_FOUND
             )
 
-        card.is_blocked = False
+        # Block the card.
+        card.is_blocked = True
 
+        # Save the updated blocked status in the database.
         card.save(
             update_fields=["is_blocked"]
         )
 
-        return Response({
-            "message":
-                "Card unblocked successfully."
-        })
+        # Send email notification to the card owner.
+        try:
+            send_card_blocked_alert(
+                card.user,
+                card
+            )
+        except Exception as error:
+            # Do not fail the block operation if email sending fails.
+            print(
+                "Card blocked successfully, "
+                "but email notification failed:",
+                error
+            )
 
-
+        return Response(
+            {
+                "message": "Card blocked successfully.",
+                "is_blocked": card.is_blocked,
+            },
+            status=status.HTTP_200_OK
+        )
 class AdminCardListView(APIView):
     permission_classes = [IsAdminUser]
 
