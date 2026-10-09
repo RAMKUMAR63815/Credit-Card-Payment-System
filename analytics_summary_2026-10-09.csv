@@ -1,0 +1,22 @@
+Credit Card Payment System
+Analytics Summary
+Report Date,2026-10-09
+
+Metric,Value
+Total Transactions,33
+Total Transaction Amount,123804.00
+Successful Transactions,24
+Successful Payment Amount,112400.00
+Failed Transactions,9
+Pending Transactions,0
+Fraud-Flagged Transactions,0
+Total Credit Limit,310000.00
+Estimated Credit Used,200100.00
+Estimated Credit Utilization (%),64.55
+
+Daily Analytics - Last Seven Days
+Date,Transaction Count,Successful Amount,Failed Transactions
+2026-10-05,2,500.00,1
+2026-10-07,3,26000.00,1
+2026-10-08,16,72400.00,1
+2026-10-09,2,11500.00,0

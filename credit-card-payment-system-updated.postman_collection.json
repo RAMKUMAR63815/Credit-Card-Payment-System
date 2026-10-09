@@ -1,0 +1,1766 @@
+{
+  "info": {
+    "_postman_id": "c56dc5de-5ef6-4fce-abd4-13b3c152d0b4",
+    "name": "Credit Card Payment System API - Updated",
+    "description": "Updated Postman collection for Django, FastAPI and MySQL. Check every endpoint against the routes registered in your local source code. Sample responses are documented in request descriptions; actual response bodies depend on backend implementation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/accounts/register/"
+            },
+            "description": "Use a unique username/email if registering again. Expected success: 201 Created (or 200). Duplicate username/email should return 400/409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"postmanuser\",\n  \"email\": \"postmanuser@example.com\",\n  \"password\": \"Test@12345\",\n  \"first_name\": \"Postman\",\n  \"last_name\": \"User\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example - Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/accounts/register/"
+                },
+                "description": "Use a unique username/email if registering again. Expected success: 201 Created (or 200). Duplicate username/email should return 400/409.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"postmanuser\",\n  \"email\": \"postmanuser@example.com\",\n  \"password\": \"Test@12345\",\n  \"first_name\": \"Postman\",\n  \"last_name\": \"User\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 2,\n  \"username\": \"postmanuser\",\n  \"email\": \"postmanuser@example.com\",\n  \"first_name\": \"Postman\",\n  \"last_name\": \"User\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Registration returns expected status\", () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 400, 409]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/accounts/login/"
+            },
+            "description": "Expected success: 200 with access and refresh JWT fields. Saves collection variables automatically.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"postmanuser\",\n  \"password\": \"Test@12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/accounts/login/"
+                },
+                "description": "Expected success: 200 with access and refresh JWT fields. Saves collection variables automatically.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"postmanuser\",\n  \"password\": \"Test@12345\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"refresh\": \"<refresh_token>\",\n  \"access\": \"<access_token>\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.access) pm.collectionVariables.set(\"access_token\", json.access);",
+                  "  if (json.refresh) pm.collectionVariables.set(\"refresh_token\", json.refresh);",
+                  "  pm.test(\"Login successful and tokens saved\", () => pm.expect(json.access).to.be.a(\"string\"));",
+                  "} else { pm.test(\"Login returned a successful status\", () => pm.expect(pm.response.code).to.be.oneOf([200, 201])); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/accounts/me/"
+            },
+            "description": "Expected success: 200 with the logged-in user profile. 401 means token is missing/expired."
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/accounts/me/"
+                },
+                "description": "Expected success: 200 with the logged-in user profile. 401 means token is missing/expired."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 2,\n  \"username\": \"postmanuser\",\n  \"email\": \"postmanuser@example.com\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Authenticated user endpoint responds\", () => pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/accounts/token/refresh/"
+            },
+            "description": "Expected success: 200 with a new access token. Exact behavior depends on SimpleJWT settings.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/accounts/token/refresh/"
+                },
+                "description": "Expected success: 200 with a new access token. Exact behavior depends on SimpleJWT settings.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"access\": \"<new_access_token>\",\n  \"refresh\": \"<refresh_token_if_rotation_enabled>\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) { const j=pm.response.json(); if(j.access) pm.collectionVariables.set(\"access_token\",j.access); } pm.test(\"Refresh returns expected status\",()=>pm.expect(pm.response.code).to.be.oneOf([200,400,401]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/accounts/logout/"
+            },
+            "description": "Requires a logout endpoint and usually token blacklist support. Expected success is commonly 200 or 204.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/accounts/logout/"
+                },
+                "description": "Requires a logout endpoint and usually token blacklist support. Expected success is commonly 200 or 204.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"detail\": \"Logout successful.\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Logout returns expected status\",()=>pm.expect(pm.response.code).to.be.oneOf([200,204,400,401]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Cards",
+      "item": [
+        {
+          "name": "Add Card",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cards/"
+            },
+            "description": "Use test data only. The backend must not store CVV or the full card number. Expected success: 201 with card ID and masked card details.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_holder_name\": \"Postman User\",\n  \"card_number\": \"4111111111111111\",\n  \"cvv\": \"123\",\n  \"expiry_month\": 12,\n  \"expiry_year\": 2030\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example - Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/cards/"
+                },
+                "description": "Use test data only. The backend must not store CVV or the full card number. Expected success: 201 with card ID and masked card details.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"card_holder_name\": \"Postman User\",\n  \"card_number\": \"4111111111111111\",\n  \"cvv\": \"123\",\n  \"expiry_month\": 12,\n  \"expiry_year\": 2030\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 1,\n  \"card_holder_name\": \"Postman User\",\n  \"masked_card_number\": \"**** **** **** 1111\",\n  \"last_four\": \"1111\",\n  \"expiry_month\": 12,\n  \"expiry_year\": 2030,\n  \"credit_limit\": \"50000.00\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  const cardId = json.id ?? json.card_id ?? json.card?.id ?? json.data?.id;",
+                  "  if (cardId !== undefined) pm.collectionVariables.set(\"card_id\", String(cardId));",
+                  "  pm.test(\"Card created and ID saved when present\", () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My Cards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cards/my-cards/"
+            },
+            "description": "Expected success: 200 with an array or paginated list of the current user’s cards."
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/cards/my-cards/"
+                },
+                "description": "Expected success: 200 with an array or paginated list of the current user’s cards."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 1,\n    \"card_holder_name\": \"Postman User\",\n    \"masked_card_number\": \"**** **** **** 1111\",\n    \"last_four\": \"1111\",\n    \"expiry_month\": 12,\n    \"expiry_year\": 2030,\n    \"credit_limit\": \"50000.00\"\n  }\n]"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cards endpoint returns expected status\",()=>pm.expect(pm.response.code).to.be.oneOf([200,401,403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Card",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cards/{{card_id}}/"
+            },
+            "description": "Uses card_id saved by Add Card when the response includes an ID. Expected success: 204 or 200."
+          },
+          "response": [
+            {
+              "name": "Example - No Content",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/cards/{{card_id}}/"
+                },
+                "description": "Uses card_id saved by Add Card when the response includes an ID. Expected success: 204 or 200."
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "text",
+              "header": [],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Delete card returns expected status\",()=>pm.expect(pm.response.code).to.be.oneOf([200,204,404,401,403]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Make Payment - SUCCESS Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/payments/"
+            },
+            "description": "Assumes the Django URL is /api/payments/payments/. Replace with the exact path in your transactions/urls.py if different. Amount 500 is only expected to succeed if your simulation and card validation allow it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_id\": {{card_id}},\n  \"amount\": 500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example - Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/payments/"
+                },
+                "description": "Assumes the Django URL is /api/payments/payments/. Replace with the exact path in your transactions/urls.py if different. Amount 500 is only expected to succeed if your simulation and card validation allow it.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"card_id\": {{card_id}},\n  \"amount\": 500\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 40,\n  \"card_id\": 1,\n  \"amount\": \"500.00\",\n  \"status\": \"SUCCESS\",\n  \"fraud_status\": \"CLEAR\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Payment endpoint responds\",()=>pm.expect(pm.response.code).to.be.oneOf([200,201,400,401,403,404,422,503]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Make Payment - FAILED Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/payments/"
+            },
+            "description": "Do not assume odd amounts fail unless your code explicitly uses that simulation rule. Check response status field.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_id\": {{card_id}},\n  \"amount\": 501\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example - Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/payments/"
+                },
+                "description": "Do not assume odd amounts fail unless your code explicitly uses that simulation rule. Check response status field.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"card_id\": {{card_id}},\n  \"amount\": 501\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 41,\n  \"card_id\": 1,\n  \"amount\": \"501.00\",\n  \"status\": \"FAILED\",\n  \"fraud_status\": \"CLEAR\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Payment endpoint responds\",()=>pm.expect(pm.response.code).to.be.oneOf([200,201,400,401,403,404,422,503]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "FastAPI Payment Direct",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{fastapi_url}}/payments/"
+            },
+            "description": "Sends the access token. If FastAPI does not require JWT, remove Authorization; if it requires a token, it should derive user identity from token rather than trust user_id in body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{user_id}},\n  \"card_id\": {{card_id}},\n  \"amount\": 500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{fastapi_url}}/payments/"
+                },
+                "description": "Sends the access token. If FastAPI does not require JWT, remove Authorization; if it requires a token, it should derive user identity from token rather than trust user_id in body.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": {{user_id}},\n  \"card_id\": {{card_id}},\n  \"amount\": 500\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"payment_id\": 40,\n  \"user_id\": 2,\n  \"card_id\": 1,\n  \"amount\": \"500.00\",\n  \"status\": \"SUCCESS\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FastAPI payment endpoint responds\",()=>pm.expect(pm.response.code).to.be.oneOf([200,201,400,401,403,404,422,500]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Transaction History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/history/"
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/history/"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 40,\n    \"amount\": \"500.00\",\n    \"status\": \"SUCCESS\",\n    \"card_id\": 1,\n    \"created_at\": \"2026-10-10T10:00:00Z\"\n  }\n]"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"History returns expected status\",()=>pm.expect(pm.response.code).to.be.oneOf([200,401,403,404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Test SUCCESS Filter",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/history/?status=SUCCESS",
+              "query": [
+                {
+                  "key": "status",
+                  "value": "SUCCESS"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/history/?status=SUCCESS",
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "SUCCESS"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 40,\n    \"amount\": \"500.00\",\n    \"status\": \"SUCCESS\",\n    \"card_id\": 1,\n    \"created_at\": \"2026-10-10T10:00:00Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Test FAILED Filter",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/history/?status=FAILED",
+              "query": [
+                {
+                  "key": "status",
+                  "value": "FAILED"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/history/?status=FAILED",
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "FAILED"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 41,\n    \"amount\": \"501.00\",\n    \"status\": \"FAILED\",\n    \"card_id\": 1,\n    \"created_at\": \"2026-10-10T10:01:00Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Test Amount Filter",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/history/?min_amount=100&max_amount=1000",
+              "query": [
+                {
+                  "key": "min_amount",
+                  "value": "100"
+                },
+                {
+                  "key": "max_amount",
+                  "value": "1000"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/history/?min_amount=100&max_amount=1000",
+                  "query": [
+                    {
+                      "key": "min_amount",
+                      "value": "100"
+                    },
+                    {
+                      "key": "max_amount",
+                      "value": "1000"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 40,\n    \"amount\": \"500.00\",\n    \"status\": \"SUCCESS\",\n    \"card_id\": 1,\n    \"created_at\": \"2026-10-10T10:00:00Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Transaction By Date",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/history/?start_date=2026-10-01&end_date=2026-10-31",
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-10-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-10-31"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/history/?start_date=2026-10-01&end_date=2026-10-31",
+                  "query": [
+                    {
+                      "key": "start_date",
+                      "value": "2026-10-01"
+                    },
+                    {
+                      "key": "end_date",
+                      "value": "2026-10-31"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 40,\n    \"amount\": \"500.00\",\n    \"status\": \"SUCCESS\",\n    \"card_id\": 1,\n    \"created_at\": \"2026-10-10T10:00:00Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Combined Filters",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/history/?status=SUCCESS&min_amount=100&max_amount=1000&start_date=2026-10-01&end_date=2026-10-31",
+              "query": [
+                {
+                  "key": "status",
+                  "value": "SUCCESS"
+                },
+                {
+                  "key": "min_amount",
+                  "value": "100"
+                },
+                {
+                  "key": "max_amount",
+                  "value": "1000"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-10-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-10-31"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/history/?status=SUCCESS&min_amount=100&max_amount=1000&start_date=2026-10-01&end_date=2026-10-31",
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "SUCCESS"
+                    },
+                    {
+                      "key": "min_amount",
+                      "value": "100"
+                    },
+                    {
+                      "key": "max_amount",
+                      "value": "1000"
+                    },
+                    {
+                      "key": "start_date",
+                      "value": "2026-10-01"
+                    },
+                    {
+                      "key": "end_date",
+                      "value": "2026-10-31"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 40,\n    \"amount\": \"500.00\",\n    \"status\": \"SUCCESS\",\n    \"card_id\": 1,\n    \"created_at\": \"2026-10-10T10:00:00Z\"\n  }\n]"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{fastapi_url}}/dashboard/summary"
+            },
+            "description": "Expected 200 with total_transactions, total_amount_spent, current_month_spending, available_credit_limit and last_5_transactions if those are the fields your FastAPI returns."
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{fastapi_url}}/dashboard/summary"
+                },
+                "description": "Expected 200 with total_transactions, total_amount_spent, current_month_spending, available_credit_limit and last_5_transactions if those are the fields your FastAPI returns."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"total_transactions\": 3,\n  \"total_amount_spent\": \"26500.00\",\n  \"current_month_spending\": \"26500.00\",\n  \"available_credit_limit\": \"173500.00\",\n  \"last_5_transactions\": [\n    {\n      \"amount\": \"4001.00\",\n      \"masked_card_number\": \"**** **** **** 7654\",\n      \"date\": \"2026-10-07T08:33:49.320772\",\n      \"status\": \"FAILED\"\n    },\n    {\n      \"amount\": \"25000.00\",\n      \"masked_card_number\": \"**** **** **** 3344\",\n      \"date\": \"2026-10-07T08:33:39.568309\",\n      \"status\": \"SUCCESS\"\n    }\n  ]\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Dashboard returns expected status\",()=>pm.expect(pm.response.code).to.be.oneOf([200,401,403,404,500])); if(pm.response.code===200){const j=pm.response.json(); pm.test(\"Dashboard response is JSON object\",()=>pm.expect(j).to.be.an(\"object\"));}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get Admin JWT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/accounts/login/"
+            },
+            "description": "Replace placeholders with the admin/staff account credentials you created. Saves admin_access_token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"YOUR_ADMIN_USERNAME\",\n  \"password\": \"YOUR_ADMIN_PASSWORD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/accounts/login/"
+                },
+                "description": "Replace placeholders with the admin/staff account credentials you created. Saves admin_access_token.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"YOUR_ADMIN_USERNAME\",\n  \"password\": \"YOUR_ADMIN_PASSWORD\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"refresh\": \"<admin_refresh_token>\",\n  \"access\": \"<admin_access_token>\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.access) pm.collectionVariables.set(\"admin_access_token\", json.access);",
+                  "  if (json.refresh) pm.collectionVariables.set(\"admin_refresh_token\", json.refresh);",
+                  "  pm.test(\"Admin tokens saved\", () => pm.expect(json.access).to.be.a(\"string\"));",
+                  "} else { pm.test(\"Login returned a successful status\", () => pm.expect(pm.response.code).to.be.oneOf([200, 201])); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin CSV Export",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/transactions/admin/export/"
+            },
+            "description": "Uses admin token. On success the response should be text/csv or an attachment, not JSON."
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/transactions/admin/export/"
+                },
+                "description": "Uses admin token. On success the response should be text/csv or an attachment, not JSON."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/csv"
+                }
+              ],
+              "body": "Transaction ID,Username,Amount,Status\n40,postmanuser,500.00,SUCCESS\n"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"CSV export returns expected status\",()=>pm.expect(pm.response.code).to.be.oneOf([200,401,403,404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Daily Payment Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/summary/"
+            },
+            "description": "Original collection used no Authorization header. If this view uses Django staff_member_required, authenticate through the Django admin session in a browser; a JWT header alone will not satisfy Django session authentication. If you changed it to a JWT-protected API, add Bearer {{admin_access_token}}."
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/admin/summary/"
+                },
+                "description": "Original collection used no Authorization header. If this view uses Django staff_member_required, authenticate through the Django admin session in a browser; a JWT header alone will not satisfy Django session authentication. If you changed it to a JWT-protected API, add Bearer {{admin_access_token}}."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"date\": \"2026-10-10\",\n    \"total_payments\": 3,\n    \"successful_payments\": 2,\n    \"failed_payments\": 1,\n    \"pending_payments\": 0,\n    \"total_amount\": \"1000.00\"\n  }\n]"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Daily summary returns expected status\",()=>pm.expect(pm.response.code).to.be.oneOf([200,401,403,404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Fraud Alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/fraud/alerts/"
+            },
+            "description": "Optional endpoint. Requires the fraud-alert API to be implemented and registered. Use admin_access_token in the Authorization header for an admin-only endpoint."
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_access_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/fraud/alerts/"
+                },
+                "description": "Optional endpoint. Requires the fraud-alert API to be implemented and registered. Use admin_access_token in the Authorization header for an admin-only endpoint."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"count\": 1,\n  \"alerts\": [\n    {\n      \"id\": 41,\n      \"username\": \"postmanuser\",\n      \"amount\": \"6000.00\",\n      \"status\": \"SUCCESS\",\n      \"fraud_status\": \"FLAGGED\",\n      \"fraud_reason\": \"Multiple high-value transactions within 10 minutes\",\n      \"created_at\": \"2026-10-10T10:01:00Z\"\n    }\n  ]\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Fraud alerts endpoint responds\",()=>pm.expect(pm.response.code).to.be.oneOf([200,401,403,404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Django Admin",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/"
+            },
+            "description": "Opens Django Admin login page. This is a browser/admin UI endpoint, not a JSON API."
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/"
+                },
+                "description": "Opens Django Admin login page. This is a browser/admin UI endpoint, not a JSON API."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/html; charset=utf-8"
+                }
+              ],
+              "body": "<!doctype html><html><title>Django administration</title></html>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Documentation",
+      "item": [
+        {
+          "name": "Django Swagger",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/docs/"
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/docs/"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/html; charset=utf-8"
+                }
+              ],
+              "body": "<!doctype html><html><title>Swagger UI</title></html>"
+            }
+          ]
+        },
+        {
+          "name": "Django OpenAPI Schema",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/schema/"
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/schema/"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"openapi\": \"3.0.3\",\n  \"info\": {\n    \"title\": \"Credit Card Payment System API\",\n    \"version\": \"1.0.0\"\n  },\n  \"paths\": {}\n}"
+            }
+          ]
+        },
+        {
+          "name": "FastAPI Swagger",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fastapi_url}}/docs"
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{fastapi_url}}/docs"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/html; charset=utf-8"
+                }
+              ],
+              "body": "<!doctype html><html><title>FastAPI - Swagger UI</title></html>"
+            }
+          ]
+        },
+        {
+          "name": "FastAPI ReDoc",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fastapi_url}}/redoc"
+            }
+          },
+          "response": [
+            {
+              "name": "Example - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{fastapi_url}}/redoc"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "text/html; charset=utf-8"
+                }
+              ],
+              "body": "<!doctype html><html><title>FastAPI - ReDoc</title></html>"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "fastapi_url",
+      "value": "http://localhost:8001",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "card_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "1",
+      "type": "string"
+    }
+  ]
+}

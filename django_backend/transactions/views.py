@@ -22,7 +22,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.db import models
 
 # Count() counts records, Sum() calculates the total
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum , Q
 
 # TruncDate() extracts only the date from a DateTime field
 from django.db.models.functions import TruncDate
@@ -74,6 +74,17 @@ from rest_framework.exceptions import ValidationError
 from django.db.models import Q  #Combine database query conditions
 
 from datetime import timedelta
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 # =========================================================
 # Payment Processing
@@ -781,6 +792,478 @@ class AdminPaymentSummaryAPIView(APIView):
                 "pending_transactions": totals["pending_transactions"],
                 "daily_analytics": daily_data,
                 "recent_transactions": recent_data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+# =========================================================
+# ANALYTICS EXPORT HELPER
+# Shared summary data used by CSV and PDF exports
+# =========================================================
+
+def get_analytics_export_data():
+    """
+    Collect analytics data for the last seven calendar days
+    and overall transaction statistics.
+    """
+
+    today = timezone.localdate()
+    start_date = today - timedelta(days=6)
+
+    all_transactions = Transaction.objects.all()
+
+    # Calculate overall transaction statistics.
+    totals = all_transactions.aggregate(
+        total_transactions=Count("id"),
+        total_amount=Sum("amount"),
+        successful_transactions=Count(
+            "id",
+            filter=models.Q(status="SUCCESS"),
+        ),
+        successful_amount=Sum(
+            "amount",
+            filter=models.Q(status="SUCCESS"),
+        ),
+        failed_transactions=Count(
+            "id",
+            filter=models.Q(status="FAILED"),
+        ),
+        pending_transactions=Count(
+            "id",
+            filter=models.Q(status="PENDING"),
+        ),
+        flagged_transactions=Count(
+            "id",
+            filter=models.Q(fraud_status="FLAGGED"),
+        ),
+    )
+
+    # Calculate the daily summary for the last seven days.
+    daily_queryset = (
+        all_transactions
+        .filter(
+            created_at__date__gte=start_date,
+            created_at__date__lte=today,
+        )
+        .annotate(
+            report_day=TruncDate(
+                "created_at",
+                tzinfo=timezone.get_current_timezone(),
+            )
+        )
+        .values("report_day")
+        .annotate(
+            transaction_count=Count("id"),
+            successful_amount=Sum(
+                "amount",
+                filter=models.Q(status="SUCCESS"),
+            ),
+            failed_transactions=Count(
+                "id",
+                filter=models.Q(status="FAILED"),
+            ),
+        )
+        .order_by("report_day")
+    )
+
+    daily_data = [
+        {
+            "date": row["report_day"].isoformat(),
+            "transaction_count": row["transaction_count"],
+            "successful_amount": str(
+                row["successful_amount"] or Decimal("0.00")
+            ),
+            "failed_transactions": row["failed_transactions"],
+        }
+        for row in daily_queryset
+    ]
+
+    # Calculate aggregate credit-limit information.
+    # NOTE: This depends on available_credit being maintained correctly.
+    cards = Card.objects.only(
+        "credit_limit",
+        "available_credit",
+    )
+
+    total_credit_limit = Decimal("0.00")
+    total_credit_used = Decimal("0.00")
+
+    for card in cards:
+        credit_limit = card.credit_limit or Decimal("0.00")
+        available_credit = (
+            card.available_credit or Decimal("0.00")
+        )
+
+        total_credit_limit += credit_limit
+
+        # Avoid negative estimated usage if available credit exceeds limit.
+        estimated_used = max(
+            credit_limit - available_credit,
+            Decimal("0.00"),
+        )
+        total_credit_used += estimated_used
+
+    if total_credit_limit > 0:
+        credit_utilization = (
+            total_credit_used / total_credit_limit * Decimal("100")
+        ).quantize(Decimal("0.01"))
+    else:
+        credit_utilization = Decimal("0.00")
+
+    return {
+        "report_date": today.isoformat(),
+        "total_transactions": totals["total_transactions"] or 0,
+        "total_amount": str(
+            totals["total_amount"] or Decimal("0.00")
+        ),
+        "successful_transactions": (
+            totals["successful_transactions"] or 0
+        ),
+        "successful_amount": str(
+            totals["successful_amount"] or Decimal("0.00")
+        ),
+        "failed_transactions": totals["failed_transactions"] or 0,
+        "pending_transactions": totals["pending_transactions"] or 0,
+        "flagged_transactions": totals["flagged_transactions"] or 0,
+        "total_credit_limit": str(total_credit_limit),
+        "estimated_credit_used": str(total_credit_used),
+        "estimated_credit_utilization_percent": str(
+            credit_utilization
+        ),
+        "daily_data": daily_data,
+    }
+
+
+# =========================================================
+# ANALYTICS SUMMARY CSV EXPORT
+# GET /api/payments/analytics/export/csv/
+# =========================================================
+
+class AnalyticsCSVExportView(APIView):
+
+    # Only authenticated admin/staff users can export analytics.
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        data = get_analytics_export_data()
+
+        # Prepare a downloadable CSV response.
+        response = HttpResponse(
+            content_type="text/csv; charset=utf-8"
+        )
+
+        response["Content-Disposition"] = (
+            f'attachment; filename="analytics_summary_'
+            f'{data["report_date"]}.csv"'
+        )
+
+        writer = csv.writer(response)
+
+        # Report title and date.
+        writer.writerow(["Credit Card Payment System"])
+        writer.writerow(["Analytics Summary"])
+        writer.writerow(["Report Date", data["report_date"]])
+        writer.writerow([])
+
+        # Overall analytics.
+        writer.writerow(["Metric", "Value"])
+        writer.writerow([
+            "Total Transactions",
+            data["total_transactions"],
+        ])
+        writer.writerow([
+            "Total Transaction Amount",
+            data["total_amount"],
+        ])
+        writer.writerow([
+            "Successful Transactions",
+            data["successful_transactions"],
+        ])
+        writer.writerow([
+            "Successful Payment Amount",
+            data["successful_amount"],
+        ])
+        writer.writerow([
+            "Failed Transactions",
+            data["failed_transactions"],
+        ])
+        writer.writerow([
+            "Pending Transactions",
+            data["pending_transactions"],
+        ])
+        writer.writerow([
+            "Fraud-Flagged Transactions",
+            data["flagged_transactions"],
+        ])
+        writer.writerow([
+            "Total Credit Limit",
+            data["total_credit_limit"],
+        ])
+        writer.writerow([
+            "Estimated Credit Used",
+            data["estimated_credit_used"],
+        ])
+        writer.writerow([
+            "Estimated Credit Utilization (%)",
+            data["estimated_credit_utilization_percent"],
+        ])
+
+        # Daily analytics for the last seven calendar days.
+        writer.writerow([])
+        writer.writerow(["Daily Analytics - Last Seven Days"])
+        writer.writerow([
+            "Date",
+            "Transaction Count",
+            "Successful Amount",
+            "Failed Transactions",
+        ])
+
+        for day in data["daily_data"]:
+            writer.writerow([
+                day["date"],
+                day["transaction_count"],
+                day["successful_amount"],
+                day["failed_transactions"],
+            ])
+
+        return response
+
+
+# =========================================================
+# ANALYTICS SUMMARY PDF EXPORT
+# GET /api/payments/analytics/export/pdf/
+# =========================================================
+
+class AnalyticsPDFExportView(APIView):
+
+    # Only authenticated admin/staff users can export analytics.
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        # Import ReportLab here so no additional top-level imports
+        # are required in your existing file.
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import mm
+        from reportlab.platypus import (
+            SimpleDocTemplate,
+            Paragraph,
+            Spacer,
+            Table,
+            TableStyle,
+        )
+
+        data = get_analytics_export_data()
+
+        # Create a downloadable PDF response.
+        response = HttpResponse(
+            content_type="application/pdf"
+        )
+
+        response["Content-Disposition"] = (
+            f'attachment; filename="analytics_summary_'
+            f'{data["report_date"]}.pdf"'
+        )
+
+        # Create the PDF document.
+        document = SimpleDocTemplate(
+            response,
+            pagesize=A4,
+            rightMargin=15 * mm,
+            leftMargin=15 * mm,
+            topMargin=15 * mm,
+            bottomMargin=15 * mm,
+        )
+
+        styles = getSampleStyleSheet()
+        elements = []
+
+        # PDF heading.
+        elements.append(
+            Paragraph(
+                "Credit Card Payment System",
+                styles["Title"],
+            )
+        )
+        elements.append(
+            Paragraph(
+                "Analytics Summary Report",
+                styles["Heading2"],
+            )
+        )
+        elements.append(
+            Paragraph(
+                f'Report Date: {data["report_date"]}',
+                styles["Normal"],
+            )
+        )
+        elements.append(Spacer(1, 12))
+
+        # Overall analytics table.
+        summary_rows = [
+            ["Metric", "Value"],
+            [
+                "Total Transactions",
+                str(data["total_transactions"]),
+            ],
+            [
+                "Total Transaction Amount",
+                data["total_amount"],
+            ],
+            [
+                "Successful Transactions",
+                str(data["successful_transactions"]),
+            ],
+            [
+                "Successful Payment Amount",
+                data["successful_amount"],
+            ],
+            [
+                "Failed Transactions",
+                str(data["failed_transactions"]),
+            ],
+            [
+                "Pending Transactions",
+                str(data["pending_transactions"]),
+            ],
+            [
+                "Fraud-Flagged Transactions",
+                str(data["flagged_transactions"]),
+            ],
+            [
+                "Total Credit Limit",
+                data["total_credit_limit"],
+            ],
+            [
+                "Estimated Credit Used",
+                data["estimated_credit_used"],
+            ],
+            [
+                "Estimated Credit Utilization",
+                data["estimated_credit_utilization_percent"] + "%",
+            ],
+        ]
+
+        summary_table = Table(
+            summary_rows,
+            colWidths=[100 * mm, 70 * mm],
+            repeatRows=1,
+        )
+
+        summary_table.setStyle(
+            TableStyle([
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.HexColor("#1F3A5F"),
+                ),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("PADDING", (0, 0), (-1, -1), 7),
+            ])
+        )
+
+        elements.append(summary_table)
+        elements.append(Spacer(1, 20))
+
+        # Daily analytics heading.
+        elements.append(
+            Paragraph(
+                "Daily Analytics - Last Seven Days",
+                styles["Heading2"],
+            )
+        )
+        elements.append(Spacer(1, 8))
+
+        daily_rows = [
+            [
+                "Date",
+                "Transaction Count",
+                "Successful Amount",
+                "Failed",
+            ]
+        ]
+
+        for day in data["daily_data"]:
+            daily_rows.append([
+                day["date"],
+                str(day["transaction_count"]),
+                day["successful_amount"],
+                str(day["failed_transactions"]),
+            ])
+
+        daily_table = Table(
+            daily_rows,
+            colWidths=[38 * mm, 42 * mm, 55 * mm, 25 * mm],
+            repeatRows=1,
+        )
+
+        daily_table.setStyle(
+            TableStyle([
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.HexColor("#1F3A5F"),
+                ),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("PADDING", (0, 0), (-1, -1), 5),
+            ])
+        )
+
+        elements.append(daily_table)
+
+        # Generate the PDF.
+        document.build(elements)
+
+        return response
+
+# =========================================================
+# FRAUD ALERTS FOR ADMIN DASHBOARD
+# GET /api/payments/fraud/alerts/
+# =========================================================
+
+class FraudAlertsAPIView(APIView):
+    # Only admin/staff users can view fraud alerts.
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        # Get suspicious transactions, newest first.
+        flagged_transactions = (
+            Transaction.objects
+            .filter(fraud_status="FLAGGED")
+            .select_related("user", "card")
+            .order_by("-created_at", "-id")
+        )
+
+        # Convert the transactions into JSON-compatible data.
+        alerts = [
+            {
+                "id": transaction.id,
+                "username": transaction.user.username,
+                "amount": str(transaction.amount),
+                "status": transaction.status,
+                "fraud_status": transaction.fraud_status,
+                "fraud_reason": (
+                    transaction.fraud_reason
+                    or "Suspicious activity detected"
+                ),
+                "created_at": transaction.created_at.isoformat(),
+            }
+            for transaction in flagged_transactions
+        ]
+
+        return Response(
+            {
+                "count": len(alerts),
+                "alerts": alerts,
             },
             status=status.HTTP_200_OK,
         )

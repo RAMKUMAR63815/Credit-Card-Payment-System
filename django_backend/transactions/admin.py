@@ -24,6 +24,7 @@ class TransactionAdmin(admin.ModelAdmin):
 
     list_filter = [
         "status",
+        "fraud_status",
         "created_at",
     ]
 

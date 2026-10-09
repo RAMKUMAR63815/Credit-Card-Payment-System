@@ -1,8 +1,10 @@
 # Credit Card Payment System
 
-A full-stack **Credit Card Payment System** built using **React, Tailwind CSS, Django, FastAPI, MySQL, and Docker**.
+A full-stack **Credit Card Payment System** built using **React, Tailwind CSS, Django REST Framework, FastAPI, MySQL 8, and Docker Compose**.
 
-This project simulates credit card payments without connecting to a real payment gateway. It provides secure authentication, card management, payment processing, transaction history, user dashboard, administrative management, API documentation, API testing, and Docker-based development.
+This project simulates credit card payments without connecting to a real payment gateway. It provides authentication, card management, payment processing, transaction history, user dashboards, administrative management, fraud detection and alerts, API documentation, API testing, and Docker-based development.
+
+> **Important:** This README documents the intended system. Verify each feature and endpoint against the actual source code before claiming it is implemented and tested.
 
 ---
 
@@ -10,11 +12,11 @@ This project simulates credit card payments without connecting to a real payment
 
 The system is divided into multiple application layers:
 
-- **React + Tailwind CSS** — Frontend user interface
-- **Django + Django REST Framework** — Authentication, card management, transaction management, and admin functionality
-- **FastAPI** — Payment processing and dashboard summary service
-- **MySQL** — Shared relational database
-- **Docker Compose** — Containerized development environment
+- **React + Tailwind CSS** — Frontend user interface.
+- **Django + Django REST Framework** — Authentication, card management, transaction management, and administration.
+- **FastAPI** — Payment processing and dashboard summary service.
+- **MySQL 8** — Relational database.
+- **Docker Compose** — Containerized development environment.
 
 ## Architecture
 
@@ -32,36 +34,31 @@ The system is divided into multiple application layers:
                        Port 8000
                            |
              +-------------+-------------+
-             |                           |
-             v                           v
-      Authentication              Card Management
-             |                           |
-             +-------------+-------------+
-                           |
-                           v
-                    Transactions
-                           |
-                           v
-                    FastAPI Service
-                       Port 8001
-                           |
-             +-------------+-------------+
-             |                           |
-             v                           v
-       Payment Processing          Dashboard Summary
-             |                           |
-             +-------------+-------------+
-                           |
-                           v
-                         MySQL
-                       Port 3306
+             |             |             |
+             v             v             v
+      Authentication  Card Management  Transactions
+                                           |
+                                  Fraud Detection
+                                           |
+                                           v
+                                    FastAPI Service
+                                       Port 8001
+                                           |
+                             +-------------+-------------+
+                             |                           |
+                             v                           v
+                      Payment Processing          Dashboard Summary
+                             |                           |
+                             +-------------+-------------+
+                                           |
+                                           v
+                                         MySQL
+                                       Port 3306
 ```
 
 ---
 
 # 2. Payment Flow
-
-The payment flow is:
 
 ```text
 React Frontend
@@ -70,7 +67,7 @@ React Frontend
       v
 Django Backend
       |
-      | Payment Request
+      | Validate User, Card and Amount
       v
 FastAPI Payment Service
       |
@@ -83,6 +80,10 @@ SUCCESS / FAILED
       v
 Django Transaction
       |
+      +----> Fraud Detection
+      |
+      +----> Alert Notification, if configured
+      |
       v
 MySQL
       |
@@ -90,11 +91,11 @@ MySQL
 React Frontend
 ```
 
+The precise order of transaction creation, fraud evaluation, and payment processing must match the implemented views and services.
+
 ---
 
 # 3. Dashboard Flow
-
-The dashboard retrieves the authenticated user's credit card usage information.
 
 ```text
 React Dashboard
@@ -108,7 +109,7 @@ FastAPI
       |
       +---- Count Transactions
       |
-      +---- SUM Transaction Amount
+      +---- SUM Successful Transaction Amounts
       |
       +---- Calculate Current Month Spending
       |
@@ -136,212 +137,160 @@ React Dashboard UI
 
 ## Authentication
 
-- User registration
-- User login
-- JWT access token
-- JWT refresh token
-- Protected APIs
-- Logout
-- Password hashing
-- Current user API
-- Admin authentication
-
----
+- User registration.
+- User login.
+- JWT access token.
+- JWT refresh token.
+- Protected APIs.
+- Logout.
+- Password hashing.
+- Current-user API.
+- Admin authentication.
 
 ## Card Management
 
-- Add credit card
-- View saved cards
-- Delete card
-- User-specific cards
-- Card number validation
-- Expiry validation
-- CVV validation
-- Masked card number
-- Last four digits storage
-- Credit limit
+- Add credit card.
+- View saved cards.
+- Delete card.
+- User-specific cards.
+- Card-number validation.
+- Expiry validation.
+- CVV validation.
+- Masked card number.
+- Last-four-digits storage.
+- Credit limit.
 
 ### Card Security
-
-Actual card numbers are **not stored**.
 
 Example:
 
 ```text
-Actual card number:
+Submitted card number:
 4111111111111111
 
-Stored masked card:
+Displayed masked card:
 **** **** **** 1111
 
 Stored last four:
 1111
 ```
 
-CVV is accepted during the request but is **never stored in the database**.
+The application must not store the full card number or CVV. The example number is illustrative test data only.
+
+## Payment Management
+
+- Simulated payment processing.
+- `PENDING`, `SUCCESS`, and `FAILED` statuses.
+- Payment history.
+- Transaction filters.
+- User-specific transaction access.
+- Admin transaction management.
+- CSV export.
+- Daily payment summary.
+
+## Fraud Detection and Alerts
+
+- Evaluate suspicious transaction patterns.
+- Flag suspicious transactions.
+- Store the fraud reason and status.
+- Display flagged transactions in the admin dashboard.
+- Send email alerts if the notification service is configured and working.
 
 ---
 
-# 5. Dashboard
-
-The dashboard provides a quick overview of the user's credit card usage.
+# 5. User Dashboard
 
 The dashboard displays:
 
-1. Total spent
-2. Available credit
-3. Total transactions
-4. Current month spending
-5. Last 5 transactions
-
----
+1. Total successful spending.
+2. Available credit.
+3. Total successful transactions.
+4. Current-month spending.
+5. Last five transactions.
 
 ## Dashboard API
 
-Endpoint:
-
-```text
-GET /dashboard/summary
-```
-
-Full URL:
-
-```text
-http://localhost:8001/dashboard/summary
-```
-
-The API requires JWT authentication.
-
-Header:
-
-```text
+```http
+GET http://localhost:8001/dashboard/summary
 Authorization: Bearer <access_token>
 ```
 
----
-
-## Dashboard Response
-
-Example:
+## Example Response
 
 ```json
 {
-    "total_transactions": 5,
-    "total_amount_spent": 2500.00,
-    "current_month_spending": 1500.00,
-    "available_credit_limit": 47500.00,
-    "last_5_transactions": [
-        {
-            "amount": 500.00,
-            "masked_card_number": "**** **** **** 1111",
-            "date": "2026-10-07T10:20:00",
-            "status": "SUCCESS"
-        },
-        {
-            "amount": 250.00,
-            "masked_card_number": "**** **** **** 1111",
-            "date": "2026-10-06T15:30:00",
-            "status": "SUCCESS"
-        }
-    ]
+  "total_transactions": 5,
+  "total_amount_spent": 2500.00,
+  "current_month_spending": 1500.00,
+  "available_credit_limit": 47500.00,
+  "last_5_transactions": [
+    {
+      "amount": 500.00,
+      "masked_card_number": "**** **** **** 1111",
+      "date": "2026-10-07T10:20:00",
+      "status": "SUCCESS"
+    },
+    {
+      "amount": 250.00,
+      "masked_card_number": "**** **** **** 1111",
+      "date": "2026-10-06T15:30:00",
+      "status": "SUCCESS"
+    }
+  ]
 }
 ```
 
----
+This is example data, not a live response from the database. Actual field names must match the FastAPI response schema.
 
-# 6. Dashboard Statistics
+## Dashboard Statistics
 
-## Total Transactions
+### Total Transactions
 
-The API counts the authenticated user's successful transactions.
-
-Conceptually:
+If counting successful transactions only:
 
 ```sql
 SELECT COUNT(id)
 FROM transactions_transaction
 WHERE user_id = ?
-AND status = 'SUCCESS';
+  AND status = 'SUCCESS';
 ```
 
----
-
-## Total Amount Spent
-
-The API calculates the total successful spending using:
+### Total Amount Spent
 
 ```sql
 SELECT SUM(amount)
 FROM transactions_transaction
 WHERE user_id = ?
-AND status = 'SUCCESS';
+  AND status = 'SUCCESS';
 ```
 
----
+### Current-Month Spending
 
-## Current Month Spending
+Calculate the sum of successful transactions created during the current calendar month.
 
-The API calculates the successful spending for the current month.
-
-Conceptually:
+### Available Credit
 
 ```text
-Current Month Spending
-=
-SUM(successful transactions
-    created during current month)
+Available Credit = Credit Limit - Relevant Successful Spending
 ```
 
----
-
-## Available Credit
-
-The available credit is calculated using:
-
-```text
-Available Credit
-=
-Credit Limit - Total Amount Spent
-```
-
-Example:
+For example:
 
 ```text
 Credit Limit = ₹50,000
 Total Spent  = ₹2,500
-
-Available Credit
-= ₹50,000 - ₹2,500
-= ₹47,500
+Available    = ₹47,500
 ```
+
+When users have multiple cards, calculate the available credit per card or define a correct aggregate rule. Do not subtract all account spending from an arbitrary card's credit limit.
+
+### Last Five Transactions
+
+Retrieve the latest five transactions in descending creation-date order. Return only the fields needed by the frontend.
 
 ---
 
-## Last 5 Transactions
-
-The dashboard retrieves only the latest five transactions.
-
-Conceptually:
-
-```sql
-SELECT
-    amount,
-    masked_card_number,
-    created_at,
-    status
-FROM transactions_transaction
-JOIN cards_card
-ON transactions_transaction.card_id = cards_card.id
-WHERE transactions_transaction.user_id = ?
-ORDER BY created_at DESC
-LIMIT 5;
-```
-
-This avoids loading the user's complete transaction history unnecessarily.
-
----
-
-# 7. Dashboard UI
+# 6. Dashboard UI
 
 The React dashboard contains four statistic cards:
 
@@ -357,97 +306,38 @@ The React dashboard contains four statistic cards:
 +----------------------+  +----------------------+
 ```
 
-The dashboard also contains:
+The recent-transactions table displays amount, status, date, and masked card number.
 
-```text
-Recent Transactions
+## Loading State
 
-Amount       Status       Date          Masked Card
-------------------------------------------------------
-₹500.00      SUCCESS      07/10/2026    **** **** 1111
-₹250.00      SUCCESS      06/10/2026    **** **** 1111
-₹100.00      FAILED       05/10/2026    **** **** 1111
-```
+Display skeletons while the dashboard request is running to prevent a blank screen and provide visual feedback.
 
----
+## Error Handling
 
-# 8. Dashboard Loading State
-
-While the API is being called, the dashboard displays a loading skeleton.
-
-The purpose of the loading skeleton is to:
-
-- Inform the user that data is loading
-- Prevent a blank screen
-- Improve user experience
-- Provide visual feedback
-
-Example:
-
-```text
-Dashboard
-
-[ Loading... ] [ Loading... ]
-[ Loading... ] [ Loading... ]
-
-Recent Transactions
-[ Loading row ]
-[ Loading row ]
-[ Loading row ]
-```
+- `401 Unauthorized`: token missing, invalid, or expired.
+- `403 Forbidden`: authenticated user lacks the required permission.
+- Other errors: show a useful message and provide a retry option.
 
 ---
 
-# 9. Dashboard Error Handling
+# 7. Dashboard Security
 
-If the JWT is missing or expired, the API returns:
-
-```text
-401 Unauthorized
-```
-
-The React application displays an error message such as:
-
-```text
-Your session has expired. Please login again.
-```
-
-Other API errors display:
-
-```text
-Unable to load dashboard data. Please try again.
-```
-
----
-
-# 10. Dashboard Security
-
-The dashboard is protected using JWT.
-
-Request:
+The dashboard requires a validated JWT:
 
 ```http
 GET /dashboard/summary
 Authorization: Bearer <access_token>
 ```
 
-Without a valid JWT:
+FastAPI must validate the token and derive the authenticated user ID from its trusted claims. It must not trust an arbitrary user ID supplied by the client.
 
-```text
-401 Unauthorized
-```
-
-This prevents users from accessing another user's dashboard data.
-
-The FastAPI service obtains the user ID from the validated JWT and uses that ID when querying MySQL.
+Dashboard queries must be scoped to the authenticated user.
 
 ---
 
-# 11. Payment Processing
+# 8. Payment Processing
 
-Payments are processed through the FastAPI service.
-
-The payment lifecycle is:
+Payment lifecycle:
 
 ```text
 PENDING
@@ -457,114 +347,119 @@ PENDING
    +----> FAILED
 ```
 
-For the current simulation:
+For a demonstration-only simulation, the application may use deterministic rules such as:
 
 ```text
-Even amount  -> SUCCESS
-Odd amount   -> FAILED
+Even amount -> SUCCESS
+Odd amount  -> FAILED
 ```
 
-Example:
-
-```text
-₹500 -> SUCCESS
-₹501 -> FAILED
-```
-
-This is only a simulation for the assignment.
+This is not a real payment-processing rule and must not be presented as fraud detection.
 
 No real payment gateway is connected.
 
+## FastAPI Payment Endpoint
+
+Intended endpoint:
+
+```http
+POST http://localhost:8001/payments/
+```
+
+Example request, if it matches the implemented schema:
+
+```json
+{
+  "user_id": 1,
+  "card_id": 1,
+  "amount": 500
+}
+```
+
+For secure authorization, the service should derive user identity from a validated token rather than trust the client-provided `user_id`.
+
 ---
 
-# 12. Transaction Management
+# 9. Transaction Management
 
-Users can view their own transactions.
+Intended transaction-history endpoint:
 
-Supported filters:
+```http
+GET http://localhost:8000/api/payments/history/
+```
 
-- Status
-- Minimum amount
-- Maximum amount
-- Start date
-- End date
-- Combined filters
-
-Examples:
+Example filters:
 
 ```text
 /api/payments/history/
-```
-
-```text
 /api/payments/history/?status=SUCCESS
-```
-
-```text
 /api/payments/history/?status=FAILED
-```
-
-```text
 /api/payments/history/?min_amount=100&max_amount=1000
+/api/payments/history/?start_date=2026-10-01&end_date=2026-10-31
 ```
 
-```text
-/api/payments/history/?start_date=2026-10-01&end_date=2026-10-01
-```
+Supported filters should include status, minimum amount, maximum amount, start date, end date, and combined filters, provided they are implemented in the current endpoint.
+
+Users must only be able to view their own transactions.
 
 ---
 
-# 13. Admin Features
+# 10. Admin Features
 
 Admin users can:
 
-- View users
-- View cards
-- View transactions
-- Export transactions as CSV
-- View daily payment summary
-- View payment status
-- View successful payments
-- View failed payments
-- View pending payments
-- View total payment amount
+- View users.
+- View cards.
+- View transactions.
+- View successful payments.
+- View failed payments.
+- View pending payments.
+- View payment totals.
+- Export transactions as CSV.
+- View daily payment summaries.
+- Search and filter transactions.
+- View fraud alerts when enabled.
 
-Admin APIs are protected using admin permissions.
+Django Admin:
+
+```text
+http://localhost:8000/admin/
+```
+
+Admin APIs must enforce permissions on the backend, not just hide buttons in React.
 
 ---
 
-# 14. CSV Export
+# 11. CSV Export
 
-Admin users can export transaction data.
+Intended endpoint:
 
-Endpoint:
-
-```text
-GET /api/payments/transactions/admin/export/
+```http
+GET http://localhost:8000/api/payments/transactions/admin/export/
 ```
 
-The CSV contains information such as:
+Expected fields may include:
 
 ```text
 Transaction ID
 Username
 Email
-Card
+Masked Card
 Amount
 Status
 Payment ID
 Created At
 ```
 
-Only masked card information is exported.
+Only masked card information should be exported.
+
+The endpoint must verify admin permission before returning transaction data.
 
 ---
 
-# 15. Daily Payment Summary
+# 12. Daily Payment Summary
 
-The system provides a daily payment summary.
-
-Summary information includes:
+The daily summary may contain:
 
 ```text
 Date
@@ -582,9 +477,114 @@ Date        Total   Success   Failed   Pending   Amount
 2026-10-01    10       7        2        1      ₹5000
 ```
 
+Intended endpoint from the existing project documentation:
+
+```text
+http://localhost:8000/api/admin/summary/
+```
+
+Verify the route against `django_backend/config/urls.py` and the relevant application URL configuration.
+
 ---
 
-# 16. Technology Stack
+# 13. Fraud Detection and Alerts
+
+The project includes fraud detection for suspicious transaction patterns when the relevant service is enabled.
+
+Example:
+
+```text
+Transaction ID: 37
+Amount: ₹6,000.00
+Fraud Status: FLAGGED
+Reason: Multiple high-value transactions within 10 minutes
+```
+
+The transaction model may contain:
+
+```text
+fraud_status
+fraud_reason
+fraud_detected_at
+```
+
+## Admin Fraud Alerts API
+
+If the fraud-alert API implementation is installed, the intended endpoint is:
+
+```http
+GET http://localhost:8000/api/payments/fraud/alerts/
+Authorization: Bearer <admin_access_token>
+```
+
+The response can use this structure:
+
+```json
+{
+  "count": 1,
+  "alerts": [
+    {
+      "id": 37,
+      "username": "testuser",
+      "amount": "6000.00",
+      "status": "SUCCESS",
+      "fraud_status": "FLAGGED",
+      "fraud_reason": "Multiple high-value transactions within 10 minutes",
+      "created_at": "2026-10-09T19:31:20.298350+00:00"
+    }
+  ]
+}
+```
+
+This is an example of the response format, not a promise that the endpoint is already registered.
+
+## React Fraud Alerts Component
+
+If `frontend/src/components/FraudAlerts.jsx` is present, it can display:
+
+- Total flagged transactions.
+- Transaction ID.
+- Username.
+- Amount.
+- Fraud reason.
+- Payment status.
+- Refresh button.
+- Loading and error states.
+
+In `AdminDashboard.jsx`, the component can be imported as:
+
+```jsx
+import FraudAlerts from "../components/FraudAlerts.jsx";
+```
+
+Place it above the analytics section:
+
+```jsx
+<section className="w-full min-w-0">
+  <FraudAlerts />
+</section>
+
+<section className="w-full min-w-0 space-y-8">
+  <AnalyticsDashboard />
+</section>
+```
+
+Keep existing dashboard sections and imports. Do not replace the complete admin dashboard with this snippet.
+
+## Email Notifications
+
+Flagging a transaction does not prove an email was delivered. Verify:
+
+1. The fraud evaluation returns a flag.
+2. The notification function is called.
+3. Email settings are correctly configured.
+4. The recipient address is valid.
+5. Django logs contain no delivery errors.
+6. The test email is received, or delivery is otherwise confirmed.
+
+---
+
+# 14. Technology Stack
 
 | Layer | Technology |
 |---|---|
@@ -595,17 +595,17 @@ Date        Total   Success   Failed   Pending   Amount
 | API Framework | Django REST Framework |
 | Authentication | JWT |
 | Backend 2 | FastAPI |
-| ORM | Django ORM + SQLAlchemy |
+| ORM | Django ORM and SQLAlchemy, where used |
 | Database | MySQL 8 |
-| API Documentation | DRF Spectacular + FastAPI Swagger |
+| API Documentation | drf-spectacular and FastAPI OpenAPI |
 | API Testing | Postman |
 | Containerization | Docker |
 | Orchestration | Docker Compose |
-| Language | Python + JavaScript |
+| Languages | Python and JavaScript |
 
 ---
 
-# 17. Project Structure
+# 15. Project Structure
 
 ```text
 credit-card-payment-system/
@@ -613,7 +613,10 @@ credit-card-payment-system/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │
+│   │   │   ├── AnalyticsDashboard.jsx
+│   │   │   ├── TransactionSearch.jsx
+│   │   │   ├── ThemeToggle.jsx
+│   │   │   └── FraudAlerts.jsx
 │   │   ├── pages/
 │   │   │   ├── Login.jsx
 │   │   │   ├── Register.jsx
@@ -622,54 +625,32 @@ credit-card-payment-system/
 │   │   │   ├── Payment.jsx
 │   │   │   ├── Transactions.jsx
 │   │   │   └── AdminDashboard.jsx
-│   │   │
 │   │   ├── App.jsx
 │   │   ├── main.jsx
 │   │   └── index.css
-│   │
 │   ├── package.json
 │   ├── vite.config.js
 │   ├── Dockerfile
-│   └── ...
+│   └── .dockerignore
 │
 ├── django_backend/
-│   │
 │   ├── config/
 │   │   ├── settings.py
 │   │   ├── urls.py
 │   │   ├── wsgi.py
 │   │   └── asgi.py
-│   │
 │   ├── accounts/
-│   │   ├── models.py
-│   │   ├── serializers.py
-│   │   ├── views.py
-│   │   ├── urls.py
-│   │   └── admin.py
-│   │
 │   ├── cards/
-│   │   ├── models.py
-│   │   ├── serializers.py
-│   │   ├── views.py
-│   │   ├── urls.py
-│   │   └── admin.py
-│   │
 │   ├── transactions/
-│   │   ├── models.py
-│   │   ├── serializers.py
-│   │   ├── views.py
-│   │   ├── urls.py
-│   │   ├── admin.py
 │   │   └── templates/
 │   │       └── transactions/
 │   │           └── daily_payment_summary.html
-│   │
+│   ├── notifications/
 │   ├── manage.py
 │   ├── requirements.txt
 │   └── Dockerfile
 │
 ├── fastapi_backend/
-│   │
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py
@@ -677,28 +658,26 @@ credit-card-payment-system/
 │   │   ├── models.py
 │   │   ├── schemas.py
 │   │   ├── auth.py
-│   │   │
 │   │   └── routes/
-│   │       ├── dashboard.py
-│   │       └── ...
-│   │
+│   │       └── dashboard.py
 │   ├── requirements.txt
 │   └── Dockerfile
 │
 ├── database/
 │   └── credit_card_db.sql
-│
+├── Screenshots/
 ├── docker-compose.yml
 ├── .env
+├── .env.example
 ├── .gitignore
 └── README.md
 ```
 
+This structure is a reference. Preserve actual filenames and modules in the existing repository; do not create duplicate apps merely to match the example.
+
 ---
 
-# 18. Database Design
-
-The project uses MySQL 8.
+# 16. Database Design
 
 Database name:
 
@@ -706,24 +685,19 @@ Database name:
 credit_card_db
 ```
 
-Main tables:
+Expected tables include:
 
 ```text
 accounts_user
 cards_card
 transactions_transaction
-payments
 ```
 
-Additional Django tables are created automatically for authentication, permissions, sessions, and admin functionality.
+A separate payments table may also exist, depending on the FastAPI implementation. Django additionally creates framework tables for authentication, permissions, sessions, and admin functionality.
 
----
+## Users Table
 
-# 19. Users Table
-
-The project uses a custom Django user model.
-
-Important fields:
+Typical fields:
 
 ```text
 id
@@ -738,13 +712,11 @@ created_at
 updated_at
 ```
 
-Passwords are stored using Django's password hashing mechanism.
+Passwords must be stored as Django password hashes.
 
----
+## Cards Table
 
-# 20. Cards Table
-
-The card table contains:
+Typical fields:
 
 ```text
 id
@@ -758,13 +730,11 @@ credit_limit
 created_at
 ```
 
-The actual card number and CVV are not stored.
+The actual card number and CVV must not be stored.
 
----
+## Transactions Table
 
-# 21. Transactions Table
-
-The transaction table contains:
+Typical fields:
 
 ```text
 id
@@ -774,21 +744,16 @@ amount
 status
 payment_id
 created_at
+fraud_status
+fraud_reason
+fraud_detected_at
 ```
 
-Possible statuses:
+Fraud fields are present only if implemented in the actual model and migrations.
 
-```text
-PENDING
-SUCCESS
-FAILED
-```
+## Payments Table
 
----
-
-# 22. Payments Table
-
-FastAPI maintains the payment processing record.
+If FastAPI maintains a separate payment record:
 
 ```text
 id
@@ -799,25 +764,13 @@ status
 created_at
 ```
 
+If two services maintain separate transaction/payment records, define which table is authoritative and how status changes are synchronized.
+
 ---
 
-# 23. Module Implementation
+# 17. Module 1 — Django Authentication
 
-## Module 1 — Django Authentication
-
-Implemented features:
-
-- Registration
-- Login
-- JWT authentication
-- JWT refresh
-- Logout
-- Password hashing
-- Protected API
-- Current user API
-- Admin authentication
-
-Main endpoints:
+Intended endpoints:
 
 ```text
 POST /api/accounts/register/
@@ -827,55 +780,70 @@ GET  /api/accounts/me/
 POST /api/accounts/logout/
 ```
 
----
+Features:
 
-# 24. Module 2 — Card Management
+- Registration.
+- Login.
+- JWT authentication.
+- Token refresh.
+- Password hashing.
+- Protected APIs.
+- Current-user API.
+- Admin authentication.
 
-Implemented features:
-
-- Add card
-- View cards
-- Delete card
-- Mask card number
-- Store last four digits
-- Credit limit
-- CVV validation
-- Expiry validation
-- User-specific access
+Check `django_backend/accounts/urls.py` for the exact paths.
 
 ---
 
-# 25. Module 3 — FastAPI Payment Processing
+# 18. Module 2 — Card Management
 
-FastAPI provides the payment service.
+Features:
 
-Main endpoint:
+- Add card.
+- View saved cards.
+- Delete card.
+- Mask card number.
+- Store last four digits.
+- Credit limit.
+- CVV validation without storage.
+- Expiry validation.
+- User-specific card access.
+
+The backend must enforce ownership and validate all submitted data.
+
+---
+
+# 19. Module 3 — FastAPI Payment Processing
+
+Intended endpoint:
 
 ```text
 POST /payments/
 ```
 
-Example request:
+Example body:
 
 ```json
 {
-    "user_id": 1,
-    "card_id": 1,
-    "amount": 500
+  "user_id": 1,
+  "card_id": 1,
+  "amount": 500
 }
 ```
 
+The actual body must match the implemented FastAPI schema. In secure designs, authenticated identity should come from a verified token rather than a client-supplied user ID.
+
 ---
 
-# 26. Module 4 — Transaction Management
+# 20. Module 4 — Transaction Management
 
-Transaction history endpoint:
+Intended endpoint:
 
 ```text
 GET /api/payments/history/
 ```
 
-Supported filters:
+Supported filters, when implemented:
 
 ```text
 status
@@ -885,9 +853,11 @@ start_date
 end_date
 ```
 
+Verify the filter implementation and date format before submitting the API documentation.
+
 ---
 
-# 27. Module 5 — Admin Management
+# 21. Module 5 — Admin Management
 
 Django Admin:
 
@@ -895,25 +865,23 @@ Django Admin:
 http://localhost:8000/admin/
 ```
 
-Admin can manage:
+Admin features:
 
 ```text
 Users
 Cards
 Transactions
-Payment records
+Payment records, if configured
+Daily payment summary
+CSV export
+Fraud alerts, if configured
 ```
 
-Admin can also access:
-
-```text
-Daily Payment Summary
-CSV Export
-```
+Administrative APIs must enforce staff/admin permissions.
 
 ---
 
-# 28. Module 6 — React Frontend
+# 22. Module 6 — React Frontend
 
 The React application contains:
 
@@ -925,6 +893,10 @@ Cards
 Payment
 Transaction History
 Admin Dashboard
+Analytics
+Transaction Search
+Theme Toggle
+Fraud Alerts, if enabled
 ```
 
 User flow:
@@ -947,39 +919,7 @@ Transaction History
 
 ---
 
-# 29. Module 6A — Dashboard
-
-The dashboard was implemented using React and Tailwind CSS.
-
-Features:
-
-```text
-Total Spent
-Available Credit
-Total Transactions
-This Month Spending
-Last 5 Transactions
-Loading Skeleton
-JWT Error Handling
-```
-
-API:
-
-```text
-GET /dashboard/summary
-```
-
-Authentication:
-
-```text
-Authorization: Bearer <JWT>
-```
-
----
-
-# 30. Module 7 — MySQL Database
-
-MySQL 8 is used as the primary database.
+# 23. Module 7 — MySQL Database
 
 Database:
 
@@ -993,68 +933,55 @@ Application user:
 credit_app
 ```
 
-Docker MySQL service:
+Docker service:
 
 ```text
 mysql
 ```
 
-Inside Docker, Django and FastAPI connect to MySQL using:
+Inside Docker, applications should normally use:
 
-```text
+```env
 DB_HOST=mysql
+DB_PORT=3306
 ```
 
-They should not use:
-
-```text
-DB_HOST=localhost
-```
-
-for Docker-to-Docker communication.
+They should not use `localhost` to connect to a different container. A process running directly on Windows should use the published host port.
 
 ---
 
-# 31. Module 8 — Security
+# 24. Module 8 — Security
 
-The project implements:
+The application should implement and verify:
 
 ### Password Hashing
 
-Passwords are never stored as plain text.
+Passwords must not be stored in plain text.
 
 ### JWT Authentication
 
-Protected APIs require:
+Protected endpoints require:
 
-```text
+```http
 Authorization: Bearer <access_token>
 ```
 
-### No CVV Storage
+### Card Security
 
-CVV is never stored.
-
-### No Actual Card Number Storage
-
-Only:
-
-```text
-masked_card_number
-last_four
-```
-
-are stored.
+- Do not store CVV.
+- Do not store the complete card number.
+- Store masked card information and last four digits only.
+- Avoid logging sensitive card data.
 
 ### Input Validation
 
-Validation is applied to:
+Validate:
 
 ```text
 Username
 Email
 Password
-Card Number
+Card Data
 CVV
 Expiry
 Amount
@@ -1062,32 +989,23 @@ Amount
 
 ### ORM Security
 
-The project uses:
-
-```text
-Django ORM
-SQLAlchemy
-```
-
-to avoid unsafe SQL construction.
+Use Django ORM and SQLAlchemy query mechanisms where applicable.
 
 ### User Data Isolation
 
-Users can access only their own:
-
-```text
-Cards
-Transactions
-Dashboard
-```
+Users may access only their own cards, transactions, and dashboard data.
 
 ### Admin Authorization
 
-Administrative functionality requires admin permissions.
+Administrative endpoints must reject non-admin users.
+
+### Secrets
+
+Never commit real `.env` credentials, active JWTs, or email passwords to GitHub.
 
 ---
 
-# 32. Module 9 — API Documentation
+# 25. Module 9 — API Documentation
 
 ## Django Swagger
 
@@ -1101,11 +1019,7 @@ http://localhost:8000/api/docs/
 http://localhost:8000/api/schema/
 ```
 
-Django documentation is generated using:
-
-```text
-drf-spectacular
-```
+These routes require `drf-spectacular` to be installed and configured.
 
 ## FastAPI Swagger
 
@@ -1121,18 +1035,9 @@ http://localhost:8001/redoc
 
 ---
 
-# 33. Module 10 — Docker
+# 26. Module 10 — Docker
 
-The project uses Docker Compose to run:
-
-```text
-React
-Django
-FastAPI
-MySQL
-```
-
-Architecture:
+Docker Compose is intended to run:
 
 ```text
 Docker Compose
@@ -1152,27 +1057,26 @@ Docker Compose
 
 Start the project:
 
-```bash
+```powershell
+cd C:\credit-card-payment-system
+docker compose config
 docker compose up -d --build
-```
-
-Check containers:
-
-```bash
 docker compose ps
 ```
 
-Stop:
+Verify that all four services are actually configured and running.
 
-```bash
+Stop the services:
+
+```powershell
 docker compose down
 ```
 
+This stops and removes containers but normally preserves named volumes.
+
 ---
 
-# 34. Module 11 — Testing
-
-Testing is performed for:
+# 27. Module 11 — Testing
 
 ## Authentication
 
@@ -1191,9 +1095,10 @@ Logout
 Add Card
 View Cards
 Delete Card
-Invalid Card
+Invalid Card Data
 Invalid CVV
 Invalid Expiry
+Ownership Validation
 ```
 
 ## Payments
@@ -1215,13 +1120,14 @@ Status Filter
 Amount Filter
 Date Filter
 Combined Filter
+Ownership Validation
 ```
 
 ## Dashboard
 
 ```text
 Dashboard Summary
-JWT Authentication
+Valid JWT
 Invalid JWT
 Total Transactions
 Total Amount
@@ -1230,21 +1136,37 @@ Available Credit
 Last 5 Transactions
 ```
 
-## Admin
+## Admin and Fraud Alerts
 
 ```text
 Admin Authorization
 CSV Export
 Daily Summary
+Fraud Detection
+Fraud Alerts API
+Email Delivery, if configured
 ```
+
+Run checks:
+
+```powershell
+docker compose exec django python manage.py check
+docker compose exec django python manage.py test
+```
+
+Run frontend linting only if the script exists:
+
+```powershell
+docker compose exec frontend npm run lint
+```
+
+Measure test coverage using the project's configured coverage tool. Do not claim 50% coverage without a report confirming it.
 
 ---
 
-# 35. Postman Testing
+# 28. Module 12 — Postman Testing
 
-The project includes a Postman collection.
-
-Recommended collection:
+Recommended Postman collection:
 
 ```text
 credit-card-payment-system
@@ -1253,6 +1175,7 @@ credit-card-payment-system
 │   ├── Register
 │   ├── Login
 │   ├── Me
+│   ├── Refresh Token
 │   └── Logout
 │
 ├── Cards
@@ -1262,7 +1185,8 @@ credit-card-payment-system
 │
 ├── Payments
 │   ├── Make Payment - SUCCESS
-│   └── Make Payment - FAILED
+│   ├── Make Payment - FAILED
+│   └── Invalid Amount
 │
 ├── Transactions
 │   ├── Transaction History
@@ -1276,128 +1200,106 @@ credit-card-payment-system
 │   └── Dashboard Summary
 │
 └── Admin
-    ├── Admin Login
     ├── CSV Export
-    └── Daily Payment Summary
+    ├── Daily Payment Summary
+    └── Fraud Alerts, if configured
 ```
 
-Dashboard Postman request:
+Dashboard request:
 
 ```http
 GET http://localhost:8001/dashboard/summary
-```
-
-Header:
-
-```text
 Authorization: Bearer {{access_token}}
 ```
 
-Expected:
+Expected responses:
 
 ```text
-200 OK
-```
-
-Without a valid token:
-
-```text
-401 Unauthorized
+200 OK      Valid authentication
+401         Missing or invalid token
+403         Authenticated user lacks permission
 ```
 
 ---
 
-# 36. Running the Project With Docker
+# 29. Running the Project with Docker
 
-From the project root:
+From PowerShell:
 
-```bash
+```powershell
 cd C:\credit-card-payment-system
-```
-
-Start all services:
-
-```bash
 docker compose up -d --build
-```
-
-Check:
-
-```bash
 docker compose ps
 ```
 
-Expected:
+Run migrations:
 
-```text
-credit_card_mysql
-credit_card_django
-credit_card_fastapi
-credit_card_frontend
-```
-
----
-
-# 37. Useful Docker Commands
-
-Check containers:
-
-```bash
-docker compose ps
-```
-
-Django logs:
-
-```bash
-docker compose logs django
-```
-
-FastAPI logs:
-
-```bash
-docker compose logs fastapi
-```
-
-MySQL logs:
-
-```bash
-docker compose logs mysql
-```
-
-Frontend logs:
-
-```bash
-docker compose logs frontend
-```
-
-Run Django migrations:
-
-```bash
-docker compose exec django python manage.py makemigrations
+```powershell
 docker compose exec django python manage.py migrate
 ```
 
-Create admin:
+Create an admin account if required:
 
-```bash
+```powershell
 docker compose exec django python manage.py createsuperuser
 ```
 
-Django check:
+Check Django:
 
-```bash
+```powershell
 docker compose exec django python manage.py check
 ```
 
-Stop:
+Open the configured frontend URL, typically:
 
-```bash
-docker compose down
+```text
+http://localhost:5173
 ```
 
 ---
 
-# 38. Application URLs
+# 30. Useful Docker Commands
+
+```powershell
+# Validate configuration
+docker compose config
+
+# List services
+docker compose ps
+
+# Django logs
+docker compose logs --tail=100 django
+
+# FastAPI logs
+docker compose logs --tail=100 fastapi
+
+# Frontend logs
+docker compose logs --tail=100 frontend
+
+# MySQL logs
+docker compose logs --tail=100 mysql
+
+# Create migrations when models change
+docker compose exec django python manage.py makemigrations
+
+# Apply migrations
+docker compose exec django python manage.py migrate
+
+# Run checks
+docker compose exec django python manage.py check
+
+# Run tests
+docker compose exec django python manage.py test
+
+# Stop containers
+docker compose down
+```
+
+**Warning:** `docker compose down -v` removes Compose-managed volumes and can delete the local database data. Use it only when you intentionally want to reset the database.
+
+---
+
+# 31. Application URLs
 
 | Application | URL |
 |---|---|
@@ -1410,79 +1312,116 @@ docker compose down
 | FastAPI Swagger | `http://localhost:8001/docs` |
 | FastAPI ReDoc | `http://localhost:8001/redoc` |
 | Dashboard API | `http://localhost:8001/dashboard/summary` |
+| Fraud Alerts API, if configured | `http://localhost:8000/api/payments/fraud/alerts/` |
+
+These URLs require the corresponding services, ports, and routes to be configured.
 
 ---
 
-# 39. Environment Variables
+# 32. Environment Variables
 
-Example:
+Example placeholders for `.env.example`:
 
 ```env
 DB_NAME=credit_card_db
 DB_USER=credit_app
-DB_PASSWORD=credit_password
+DB_PASSWORD=replace_with_local_password
 DB_HOST=mysql
 DB_PORT=3306
 
-JWT_SECRET_KEY=your-secret-key
+JWT_SECRET_KEY=replace_with_a_long_random_secret
 JWT_ALGORITHM=HS256
 ```
 
-Sensitive values should not be committed to GitHub.
+Configure email settings only if the notification service reads them.
+
+```env
+EMAIL_HOST=
+EMAIL_PORT=587
+EMAIL_HOST_USER=
+EMAIL_HOST_PASSWORD=
+EMAIL_USE_TLS=True
+DEFAULT_FROM_EMAIL=
+```
+
+Use real local credentials only in `.env`, and ensure that file is excluded from Git.
 
 ---
 
-# 40. Database Dump
+# 33. Database Dump
 
-The MySQL database can be exported using:
+Create the backup directory:
 
-```bash
-docker exec credit_card_mysql mysqldump --no-tablespaces -u credit_app -pcredit_password credit_card_db > database/credit_card_db.sql
+```powershell
+New-Item -ItemType Directory -Force .\database
 ```
 
-The dump is stored as:
+Example database export using the configured MySQL application credentials:
+
+```powershell
+docker exec credit_card_mysql mysqldump --no-tablespaces -u credit_app -p credit_card_db > .\database\credit_card_db.sql
+```
+
+Enter the database password when prompted.
+
+The resulting file is:
 
 ```text
 database/credit_card_db.sql
 ```
 
-The SQL file is a backup/submission copy of the database and is separate from the live MySQL Docker volume.
+Check that the dump exists:
+
+```powershell
+Get-Item .\database\credit_card_db.sql
+```
+
+The SQL dump is separate from the live MySQL Docker volume. Do not put real customer data or secrets in the submission dump.
 
 ---
 
-# 41. Git and GitHub
+# 34. Git and GitHub
 
-Check status:
+Check repository status:
 
-```bash
+```powershell
 git status
 ```
 
-Add changes:
+Verify that `.env` is ignored:
 
-```bash
+```powershell
+git check-ignore .env
+```
+
+Stage changes:
+
+```powershell
 git add .
+git status
 ```
 
 Commit:
 
-```bash
-git commit -m "Add credit card dashboard"
+```powershell
+git commit -m "Update credit card dashboard and fraud alerts"
 ```
 
-Push:
+Push the current branch:
 
-```bash
-git push origin main
+```powershell
+git push origin HEAD
 ```
 
-Before pushing, verify that `.env` and other secrets are ignored.
+Do not push credentials, active tokens, email passwords, or sensitive user data.
+
+If a secret was previously committed, simply ignoring the file does not remove it from Git history. Rotate the secret and clean the repository history if necessary.
 
 ---
 
-# 42. `.gitignore`
+# 35. `.gitignore`
 
-Recommended:
+Recommended configuration:
 
 ```gitignore
 # Environment variables
@@ -1527,62 +1466,60 @@ htmlcov/
 response.json
 openapi.json
 transactions.csv
-"transactions (1).csv"
+transactions (1).csv
 ```
+
+Keep the required database dump and Postman collection only after confirming they contain no secrets or sensitive production data.
 
 ---
 
-# 43. Security Checklist
-
-Before final submission:
+# 36. Security Checklist
 
 ```text
-[ ] Password is not stored as plain text
+[ ] Passwords are hashed
 [ ] JWT is required for protected APIs
 [ ] Invalid JWT returns 401
 [ ] CVV is never stored
-[ ] Actual card number is never stored
+[ ] Full card number is never stored
 [ ] Only masked card number is stored
 [ ] Only last four digits are stored
 [ ] Users can access only their own cards
 [ ] Users can access only their own transactions
-[ ] Dashboard is user-specific
+[ ] Dashboard data is user-specific
 [ ] Admin APIs reject normal users
 [ ] Amount validation is implemented
 [ ] Card validation is implemented
 [ ] Expiry validation is implemented
-[ ] ORM is used
+[ ] ORM is used safely
 [ ] Secrets are not committed
+[ ] Fraud alerts are permission-protected
+[ ] Email delivery is verified if enabled
 ```
 
 ---
 
-# 44. Dashboard Checklist
+# 37. Dashboard Checklist
 
 ```text
-[ ] GET /dashboard/summary created
-[ ] JWT authentication implemented
-[ ] Total transactions calculated
-[ ] Total amount spent calculated
-[ ] Current month spending calculated
-[ ] Available credit calculated
-[ ] Last 5 transactions returned
-[ ] transactions table queried
-[ ] cards table queried
-[ ] SUM(amount) used
-[ ] LIMIT 5 used
-[ ] React dashboard created
-[ ] Statistic cards created
-[ ] Transaction table created
-[ ] Loading skeleton created
-[ ] JWT error handling created
-[ ] Postman request created
-[ ] UI screenshot captured
+[ ] GET /dashboard/summary is implemented
+[ ] JWT authentication is implemented
+[ ] Total transactions are calculated correctly
+[ ] Total successful spending is calculated correctly
+[ ] Current-month spending is calculated correctly
+[ ] Available credit is calculated correctly
+[ ] Last five transactions are returned
+[ ] Queries are scoped to the authenticated user
+[ ] React statistic cards are implemented
+[ ] Recent transaction table is implemented
+[ ] Loading skeleton is implemented
+[ ] JWT error handling is implemented
+[ ] Postman request is tested
+[ ] Dashboard screenshot is captured
 ```
 
 ---
 
-# 45. Final Submission Checklist
+# 38. Final Submission Checklist
 
 ## Source Code
 
@@ -1590,9 +1527,9 @@ Before final submission:
 [ ] React frontend
 [ ] Django backend
 [ ] FastAPI backend
-[ ] Dockerfile - frontend
-[ ] Dockerfile - Django
-[ ] Dockerfile - FastAPI
+[ ] Frontend Dockerfile
+[ ] Django Dockerfile
+[ ] FastAPI Dockerfile
 [ ] docker-compose.yml
 ```
 
@@ -1600,7 +1537,7 @@ Before final submission:
 
 ```text
 [ ] MySQL database
-[ ] Database schema
+[ ] Database schema and migrations
 [ ] Database dump
 ```
 
@@ -1652,15 +1589,15 @@ Before final submission:
 [ ] Total spent
 [ ] Available credit
 [ ] Total transactions
-[ ] Current month spending
-[ ] Last 5 transactions
+[ ] Current-month spending
+[ ] Last five transactions
 [ ] Loading skeleton
 [ ] JWT error handling
 [ ] Postman test
-[ ] Dashboard screenshot
+[ ] UI screenshot
 ```
 
-## Admin
+## Admin and Fraud Alerts
 
 ```text
 [ ] Django Admin
@@ -1668,9 +1605,12 @@ Before final submission:
 [ ] Card management
 [ ] Transaction management
 [ ] Payment summary
+[ ] Fraud detection
+[ ] Fraud alerts in the React admin dashboard
+[ ] Email notification delivery verified, if enabled
 ```
 
-## Documentation
+## Documentation and Testing
 
 ```text
 [ ] Django Swagger
@@ -1678,57 +1618,55 @@ Before final submission:
 [ ] FastAPI Swagger
 [ ] FastAPI ReDoc
 [ ] Postman collection
-[ ] README.md
-```
-
-## Testing
-
-```text
 [ ] Authentication tests
 [ ] Card tests
 [ ] Payment tests
 [ ] Transaction tests
 [ ] Dashboard tests
 [ ] Admin tests
-[ ] Minimum 50% coverage
+[ ] Test coverage report
 ```
 
 ## Final Files
 
 ```text
-[ ] GitHub repository
+[ ] GitHub repository link
 [ ] README.md
 [ ] Database dump
 [ ] Postman collection
 [ ] UI screenshots
-[ ] Admin credentials
+[ ] Admin credentials shared securely
 ```
 
 ---
 
-# 46. Module Status
+# 39. Module Status
+
+Use this as a status checklist and mark a module completed only after verifying it in the current project.
 
 ```text
-Module 1  - Django Authentication       - Completed
-Module 2  - Card Management              - Completed
-Module 3  - FastAPI Payment Processing   - Completed
-Module 4  - Transaction Management       - Completed
-Module 5  - Admin Management             - Completed
-Module 6  - React Frontend               - Completed
-Module 7  - MySQL Database               - Completed
-Module 8  - Security                     - Completed
-Module 9  - API Documentation            - Completed
-Module 10 - Docker & Deployment          - Completed
-Module 11 - Testing                      - Completed
-Module 12 - Git & Documentation          - Completed
-Dashboard - Credit Usage Dashboard       - Completed
+Module 1  - Django Authentication
+Module 2  - Card Management
+Module 3  - FastAPI Payment Processing
+Module 4  - Transaction Management
+Module 5  - Admin Management
+Module 6  - React Frontend
+Module 7  - MySQL Database
+Module 8  - Security
+Module 9  - API Documentation
+Module 10 - Docker and Deployment
+Module 11 - Testing
+Module 12 - Git and Documentation
+Dashboard - Credit Usage Dashboard
+Fraud     - Fraud Detection and Admin Alerts
+Email     - Fraud Email Notifications, if configured
 ```
 
 ---
 
-# 47. Conclusion
+# 40. Conclusion
 
-The Credit Card Payment System demonstrates a complete full-stack architecture using:
+The Credit Card Payment System demonstrates a full-stack architecture using:
 
 ```text
 React
@@ -1741,33 +1679,11 @@ FastAPI
    +
 MySQL
    +
-Docker
+Docker Compose
 ```
 
-The application provides:
+The intended functionality includes secure authentication, card management, simulated payment processing, transaction history, credit-usage dashboards, administration, fraud alerts, API documentation, and testing.
 
-```text
-Secure Authentication
-        +
-Card Management
-        +
-Simulated Payment Processing
-        +
-Transaction Management
-        +
-Credit Card Usage Dashboard
-        +
-Admin Management
-        +
-API Documentation
-        +
-Postman Testing
-        +
-Docker Containerization
-```
+The dashboard summarizes the authenticated user's credit usage, including spending, available credit, transaction counts, and recent transactions. The admin dashboard can display transaction analytics and suspicious transactions when the corresponding APIs and UI components are enabled.
 
-The dashboard provides users with a quick view of their credit card usage, including total spending, available credit, total transactions, current-month spending, and the latest five transactions.
-
-The dashboard API is protected using JWT authentication and retrieves user-specific information from the MySQL `transactions_transaction` and `cards_card` tables.
-
-No real payment gateway is used. Payment processing is simulated through FastAPI for development and assignment purposes.
+No real payment gateway is used. The system is an educational simulation and should not be treated as production-ready payment infrastructure.

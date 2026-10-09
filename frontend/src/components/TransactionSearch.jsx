@@ -23,15 +23,24 @@ function formatCurrency(value) {
 function formatDate(value) {
   if (!value) return "—";
 
-  return new Date(value).toLocaleString("en-IN", {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleString("en-IN", {
     dateStyle: "medium",
     timeStyle: "short",
   });
 }
 
 function TransactionSearch() {
-  const [filters, setFilters] = useState(initialFilters);
-  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [filters, setFilters] = useState({ ...initialFilters });
+  const [appliedFilters, setAppliedFilters] = useState({
+    ...initialFilters,
+  });
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState("10");
 
@@ -42,7 +51,6 @@ function TransactionSearch() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -73,15 +81,19 @@ function TransactionSearch() {
         const response = await fetch(
           `${API_URL}?${params.toString()}`,
           {
+            method: "GET",
             headers: {
               Authorization: `Bearer ${token}`,
+              Accept: "application/json",
             },
             signal: controller.signal,
           }
         );
 
         if (response.status === 401) {
-          throw new Error("Your session has expired. Please log in again.");
+          throw new Error(
+            "Your session has expired. Please log in again."
+          );
         }
 
         if (response.status === 403) {
@@ -93,7 +105,8 @@ function TransactionSearch() {
           const detail = body?.detail || body?.error;
 
           throw new Error(
-            detail || `Unable to load transactions (${response.status}).`
+            detail ||
+              `Unable to load transactions (HTTP ${response.status}).`
           );
         }
 
@@ -101,17 +114,37 @@ function TransactionSearch() {
 
         if (controller.signal.aborted) return;
 
-        // DRF pagination returns an object with a results array.
-        // The array fallback also supports an unpaginated response.
-        const results = Array.isArray(data) ? data : data.results || [];
+        // Supports both paginated and unpaginated API responses.
+        const results = Array.isArray(data)
+          ? data
+          : Array.isArray(data.results)
+            ? data.results
+            : [];
 
         setTransactions(results);
-        setCount(Array.isArray(data) ? results.length : data.count || 0);
-        setNextUrl(Array.isArray(data) ? null : data.next || null);
-        setPreviousUrl(Array.isArray(data) ? null : data.previous || null);
+        setCount(
+          Array.isArray(data)
+            ? results.length
+            : Number(data.count || 0)
+        );
+        setNextUrl(
+          Array.isArray(data) ? null : data.next || null
+        );
+        setPreviousUrl(
+          Array.isArray(data) ? null : data.previous || null
+        );
       } catch (err) {
-        if (err.name !== "AbortError" && !controller.signal.aborted) {
-          setError(err.message || "Unable to load transactions.");
+        if (
+          err.name !== "AbortError" &&
+          !controller.signal.aborted
+        ) {
+          setError(
+            err.message || "Unable to load transactions."
+          );
+          setTransactions([]);
+          setCount(0);
+          setNextUrl(null);
+          setPreviousUrl(null);
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -142,7 +175,9 @@ function TransactionSearch() {
       (!Number.isFinite(Number(filters.min_amount)) ||
         Number(filters.min_amount) < 0)
     ) {
-      setError("Minimum amount must be a valid non-negative number.");
+      setError(
+        "Minimum amount must be a valid non-negative number."
+      );
       return;
     }
 
@@ -151,7 +186,9 @@ function TransactionSearch() {
       (!Number.isFinite(Number(filters.max_amount)) ||
         Number(filters.max_amount) < 0)
     ) {
-      setError("Maximum amount must be a valid non-negative number.");
+      setError(
+        "Maximum amount must be a valid non-negative number."
+      );
       return;
     }
 
@@ -160,7 +197,9 @@ function TransactionSearch() {
       filters.max_amount !== "" &&
       Number(filters.min_amount) > Number(filters.max_amount)
     ) {
-      setError("Minimum amount cannot exceed maximum amount.");
+      setError(
+        "Minimum amount cannot exceed maximum amount."
+      );
       return;
     }
 
@@ -186,6 +225,8 @@ function TransactionSearch() {
   }
 
   function changePage(direction) {
+    if (loading) return;
+
     if (direction === "next" && nextUrl) {
       setPage((current) => current + 1);
     }
@@ -195,9 +236,18 @@ function TransactionSearch() {
     }
   }
 
-  const totalPages = Math.max(1, Math.ceil(count / Number(pageSize)));
-  const firstResult = count === 0 ? 0 : (page - 1) * Number(pageSize) + 1;
-  const lastResult = Math.min(page * Number(pageSize), count);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(count / Number(pageSize))
+  );
+
+  const firstResult =
+    count === 0 ? 0 : (page - 1) * Number(pageSize) + 1;
+
+  const lastResult = Math.min(
+    page * Number(pageSize),
+    count
+  );
 
   return (
     <section className="mt-8 space-y-6">
@@ -205,6 +255,7 @@ function TransactionSearch() {
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
           Transaction History
         </h2>
+
         <p className="mt-2 text-gray-600 dark:text-gray-400">
           Search and filter customer payments.
         </p>
@@ -220,14 +271,14 @@ function TransactionSearch() {
             htmlFor="transaction-search"
             className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
           >
-            Search by transaction ID, payment ID, or last four card digits
+            Search by transaction ID, payment ID, or last four
+            card digits
           </label>
 
           <input
             id="transaction-search"
             name="search"
             type="search"
-            inputMode="numeric"
             value={filters.search}
             onChange={updateFilter}
             placeholder="For example, 1234"
@@ -479,7 +530,7 @@ function TransactionSearch() {
                               : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                         }`}
                       >
-                        {transaction.status}
+                        {transaction.status || "UNKNOWN"}
                       </span>
                     </td>
 
