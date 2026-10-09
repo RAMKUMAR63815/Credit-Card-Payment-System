@@ -5,6 +5,7 @@
 html {
   transition:
     background-color 0.3s ease,
+    /* ease — the change starts slowly, speeds up, and then slows down near the end. */
     color 0.3s ease;
 }
 

@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom"
 
 import ThemeToggle from "../components/ThemeToggle"
 
-
+import TransactionSearch from "../components/TransactionSearch";
+import AnalyticsDashboard from "../components/AnalyticsDashboard.jsx";
 function AdminDashboard() {
 
   const navigate = useNavigate()
@@ -718,7 +719,10 @@ function AdminDashboard() {
 
         </div>
 
+        {/* Payment analytics and charts */}
+        <AnalyticsDashboard />
 
+        <TransactionSearch />
 
         {/* Dashboard Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

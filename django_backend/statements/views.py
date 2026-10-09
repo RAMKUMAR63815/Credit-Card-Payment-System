@@ -1,26 +1,20 @@
-from django.http import HttpResponse
-from django.utils import timezone
-
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
-
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import (
-    ParagraphStyle,
-    getSampleStyleSheet,
-)
-from reportlab.lib.units import mm
+from django.http import HttpResponse  # Sends a response or generated PDF file to the browser.
+from django.utils import timezone  # Gets the current date and time with timezone support.
+from rest_framework.permissions import IsAuthenticated  # Allows API access only to authenticated users when configured.
+from rest_framework.views import APIView  # Creates class-based API views to handle HTTP requests.
+from reportlab.lib import colors  # Provides colors for PDF text, backgrounds, and borders.
+from reportlab.lib.enums import TA_CENTER  # Centers text inside a paragraph.
+from reportlab.lib.pagesizes import A4  # Sets the PDF page size to A4.
+from reportlab.lib.styles import (ParagraphStyle, getSampleStyleSheet,)  # Creates custom text styles and provides predefined styles.
+from reportlab.lib.units import mm  # Converts millimetre measurements into PDF layout units.
 from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer,
-    Table,
-    TableStyle,
+    SimpleDocTemplate,  # Creates the PDF document and controls its page layout.
+    Paragraph,  # Adds formatted text such as titles and descriptions to the PDF.
+    Spacer,  # Adds empty space between PDF elements.
+    Table,  # Displays transaction details in rows and columns.
+    TableStyle,  # Applies colors, borders, alignment, and padding to the table.
 )
-
-from transactions.models import Transaction
+from transactions.models import Transaction  # Imports the Transaction model to retrieve transaction records from the database.
 
 
 class MonthlyStatementView(APIView):
@@ -47,22 +41,12 @@ class MonthlyStatementView(APIView):
         #
         # If year is not provided, current year is used.
         try:
-            year = int(
-                request.query_params.get(
-                    "year",
-                    current_date.year,
-                )
-            )
+            year = int(request.query_params.get("year",current_date.year,))
 
             # Read month from query parameter.
             # If month is not provided,
             # current month is used.
-            month = int(
-                request.query_params.get(
-                    "month",
-                    current_date.month,
-                )
-            )
+            month = int(request.query_params.get("month",current_date.month,) )
 
         except ValueError:
 
@@ -122,24 +106,24 @@ class MonthlyStatementView(APIView):
 
         # Tell the browser that this response
         # should be downloaded as a PDF file.
-        response["Content-Disposition"] = (
+        response["Content-Disposition"] = (#Sets an HTTP response header.It tells the browser how to handle the returned file.
             f'attachment; filename='
             f'"monthly_statement_'
             f'{year}_{month:02d}.pdf"'
         )
 
         # Create the PDF document.
-        document = SimpleDocTemplate(
+        document = SimpleDocTemplate(#creates the PDF document layout.
             response,
             pagesize=A4,
-            rightMargin=15 * mm,
+            rightMargin=15 * mm,#leaves 15 mm of space on the right.
             leftMargin=15 * mm,
             topMargin=15 * mm,
             bottomMargin=15 * mm,
         )
 
         # Load ReportLab's default styles.
-        styles = getSampleStyleSheet()
+        styles = getSampleStyleSheet() #ReportLab already provides some text styles.
 
         # Create custom title style.
         title_style = ParagraphStyle(
@@ -147,8 +131,9 @@ class MonthlyStatementView(APIView):
             parent=styles["Title"],
             alignment=TA_CENTER,
             fontSize=18,
-            leading=22,
-            spaceAfter=10,
+            leading=22, #Sets the line spacing
+            spaceAfter=10, #Adds space after the paragraph
+
         )
 
         # Create heading style.
@@ -175,7 +160,7 @@ class MonthlyStatementView(APIView):
         )
 
         elements.append(
-            Spacer(1, 8)
+            Spacer(1, 8)#widht,height
         )
 
         # --------------------------------------------------
@@ -228,7 +213,7 @@ class MonthlyStatementView(APIView):
             ],
             [
                 "Total Successful Spending",
-                f"{total_spending:,.2f}",
+                f"{total_spending:,.2f}",#formats the amount with commas and two decimal places
             ],
         ]
 
@@ -245,7 +230,7 @@ class MonthlyStatementView(APIView):
                 [
                     (
                         "BACKGROUND",
-                        (0, 0),
+                        (0, 0),#0, 0), (0, -1) means the first column, from its first row to its last row.
                         (0, -1),
                         colors.HexColor("#e5e7eb"),
                     ),
@@ -308,7 +293,7 @@ class MonthlyStatementView(APIView):
             masked_card = (
                 transaction.card.masked_card_number
                 if transaction.card
-                else "****"
+                else "**** **** **** ****"
             )
 
             table_data.append(
@@ -422,7 +407,7 @@ class MonthlyStatementView(APIView):
         )
 
         # Generate the PDF.
-        document.build(elements)
+        document.build(elements)#the PDF document object created using SimpleDocTemplate(). #build-arranges the content and generates the PDF.
 
         # Return the generated PDF to the browser.
         return response

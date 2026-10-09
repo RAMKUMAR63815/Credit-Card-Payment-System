@@ -72,8 +72,8 @@ class CardSerializer(serializers.ModelSerializer):#django modela request/request
         )
 
         return card
-        
-class AdminCardSerializer(serializers.ModelSerializer):
+
+class AdminCardSerializer(serializers.ModelSerializer):#ModelSerializer automatically creates fields based on your Django model
     username = serializers.CharField(
         source="user.username",
         read_only=True
@@ -96,4 +96,4 @@ class AdminCardSerializer(serializers.ModelSerializer):
             "masked_card_number",
             "last_four",
             "created_at",
-        ]
+        ]#remaing field also response but perform write operation-->create/update

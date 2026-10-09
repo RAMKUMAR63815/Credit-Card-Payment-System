@@ -11,7 +11,8 @@ export function ThemeProvider({ children }) {
     const root = document.documentElement
 
     if (theme === "dark") {
-      root.classList.add("dark")
+      root.classList.add("dark") 
+    //   add class name for changes
     } else {
       root.classList.remove("dark")
     }

@@ -27,16 +27,21 @@ function MonthlyStatement() {
       }
 
       // Convert API response into PDF binary data
-      const blob = await response.blob();
+      const blob = await response.blob(); 
+    //   reads the response body as a Blob (Binary Large Object), suitable for handling file data such as PDFs and images.
 
       // Create temporary browser URL for the PDF
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob); 
+    //   This creates a temporary URL that points to the Blob in browser memory.
 
       // Create temporary download link
       const link = document.createElement("a");
+    //   anchor tag
 
-      link.href = url;
+      link.href = url; 
+    //   Tells the link which PDF data to download.
       link.download = "monthly_statement.pdf";
+    //   Suggests the filename for the downloaded file.
 
       // Add link to page and trigger download
       document.body.appendChild(link);

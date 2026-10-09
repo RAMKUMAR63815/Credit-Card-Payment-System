@@ -1,6 +1,6 @@
 from django.core.mail import send_mail
 from django.conf import settings
-
+import logging
 
 def send_email_notification(
     recipient_email,
@@ -75,3 +75,51 @@ def check_low_credit_alert(card):
     # Send alert when available credit is below 10%
     if percentage < 10:
         send_low_credit_alert(card.user,card )
+
+# Creates a logger for the current Python file.
+# It helps record errors and important events in your application.
+# __name__ identifies the current module (file).
+
+
+def send_fraud_alert(transaction):
+    """
+    Email the transaction owner when a transaction is flagged.
+    """
+
+    logger = logging.getLogger(__name__)
+    recipient = transaction.user.email
+
+    if not recipient:
+        logger.warning(
+            "Fraud alert not sent: user %s has no email address.",
+            transaction.user_id,
+        )
+        return False
+
+    subject = "Security alert: suspicious transaction detected"
+
+    message = (
+        f"Hello {transaction.user.username},\n\n"
+        "Our system detected a transaction that requires review.\n\n"
+        f"Transaction ID: {transaction.id}\n"
+        f"Amount: {transaction.amount}\n"
+        f"Reason: {transaction.fraud_reason}\n\n"
+        "If you do not recognize this activity, please contact "
+        "the support team.\n"
+    )
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[recipient],
+            fail_silently=False,
+        )
+        return True
+
+    except Exception:
+        logger.exception(
+            "Fraud alert email failed for transaction ID %s.",
+            transaction.id,)
+        return False

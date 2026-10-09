@@ -7,6 +7,12 @@ from rest_framework.permissions import IsAuthenticated,  IsAdminUser
 from rest_framework.response import Response
 # Used to send API response
 
+from decimal import Decimal, InvalidOperation
+from django.db import transaction as db_transaction
+from accounts.audit import record_audit
+from accounts.models import AuditLog
+from accounts.permissions import (IsAdminRole,IsReadOnlyOrAbove,)
+
 from rest_framework.views import APIView
 # Base class for creating API views
 
@@ -101,54 +107,54 @@ class CardDeleteView(APIView):
             {"message": "Card deleted successfully"},
             status=status.HTTP_200_OK
         )
+
 class AdminBlockCardView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminRole]
 
-    def post(self, request, card_id):
-        # Find the card using the card ID from the URL.
-        # select_related("user") also loads the card owner.
-        try:
-            card = Card.objects.select_related(
-                "user"
-            ).get(id=card_id)
-
-        except Card.DoesNotExist:
-            return Response(
-                {"detail": "Card not found."},
-                status=status.HTTP_404_NOT_FOUND
+    def post(self, request, card_id):#tomic() use pannina card block aaguradhum audit history save aaguradhum ore transaction-la nadakkum. Audit save fail aana card update-um rollback aagum.
+        with db_transaction.atomic():#All database opertion  changes-um serndhu success aaganum.
+            card = get_object_or_404(
+                Card.objects.select_for_update().select_related("user"),
+                id=card_id,
             )
 
-        # Block the card.
-        card.is_blocked = True
+            changed = not card.is_blocked
 
-        # Save the updated blocked status in the database.
-        card.save(
-            update_fields=["is_blocked"]
-        )
+            if changed:
+                card.is_blocked = True
+                card.save(update_fields=["is_blocked"])
 
-        # Send email notification to the card owner.
-        try:
-            send_card_blocked_alert(
-                card.user,
-                card
-            )
-        except Exception as error:
-            # Do not fail the block operation if email sending fails.
-            print(
-                "Card blocked successfully, "
-                "but email notification failed:",
-                error
-            )
+                record_audit(
+                    actor=request.user,
+                    action=AuditLog.Action.CARD_BLOCKED,
+                    target_type="Card",
+                    target_id=card.id,
+                    details={
+                        "new_is_blocked": True,
+                    },
+                )
 
-        return Response(
-            {
-                "message": "Card blocked successfully.",
-                "is_blocked": card.is_blocked,
-            },
-            status=status.HTTP_200_OK
-        )
+        # Email failure must not undo a successful card block.
+        if changed:
+            try:
+                send_card_blocked_alert(card.user, card)
+            except Exception:
+                import logging#use pannina email send fail aana, andha error-oda details and traceback log-la save aagum. Developer later enna problem nu identify panni fix pannalaam. Aana card already block aagirundha, email fail aanaalum card block status change aagadhu.
+                logging.getLogger(__name__).exception(
+                    "Card-blocked email failed for card ID %s",
+                    card.id,
+                )
+
+        return Response({
+            "message": (
+                "Card blocked successfully."
+                if changed else "Card is already blocked."
+            ),
+            "is_blocked": card.is_blocked,
+        })
+
 class AdminCardListView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsReadOnlyOrAbove]
 
     def get(self, request):
         cards = (
@@ -157,92 +163,103 @@ class AdminCardListView(APIView):
             .order_by("-created_at")
         )
 
-        serializer = AdminCardSerializer(
+        serializer = AdminCardSerializer(#AdminCardSerializer prepares the card data for the API response
             cards,
-            many=True
+            many=True#cards represents multiple card records, not a single card.
         )
 
         return Response(
             serializer.data
         )
 
+
 class AdminUnblockCardView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminRole]
 
     def post(self, request, card_id):
-        try:
-            card = Card.objects.select_related(
-                "user"
-            ).get(id=card_id)
-
-        except Card.DoesNotExist:
-            return Response(
-                {"detail": "Card not found."},
-                status=404
+        with db_transaction.atomic():
+            card = get_object_or_404(
+                Card.objects.select_for_update(),
+                id=card_id,
             )
 
-        card.is_blocked = False
+            changed = card.is_blocked
 
-        card.save(
-            update_fields=["is_blocked"]
-        )
+            if changed:
+                card.is_blocked = False
+                card.save(update_fields=["is_blocked"])
+
+                record_audit(
+                    actor=request.user,
+                    action=AuditLog.Action.CARD_UNBLOCKED,
+                    target_type="Card",
+                    target_id=card.id,
+                    details={
+                        "new_is_blocked": False,
+                    },
+                )
 
         return Response({
-            "message":
+            "message": (
                 "Card unblocked successfully."
+                if changed else "Card is already unblocked."
+            ),
+            "is_blocked": card.is_blocked,
         })
 
+
 class AdminUpdateCreditLimitView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminRole]
 
     def patch(self, request, card_id):
-        try:
-            card = Card.objects.get(
-                id=card_id
-            )
-
-        except Card.DoesNotExist:
-            return Response(
-                {"detail": "Card not found."},
-                status=404
-            )
-
-        credit_limit = request.data.get(
-            "credit_limit"
-        )
+        raw_limit = request.data.get("credit_limit")
 
         try:
-            credit_limit = float(
-                credit_limit
-            )
-
-        except (TypeError, ValueError):
+            new_limit = Decimal(str(raw_limit))
+        except (InvalidOperation, TypeError, ValueError):
             return Response(
-                {
-                    "detail":
-                    "Invalid credit limit."
-                },
-                status=400
+                {"detail": "A valid credit limit is required."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if credit_limit <= 0:
+        if not new_limit.is_finite() or new_limit <= Decimal("0"):##checks whether the decimal value is a normal
             return Response(
-                {
-                    "detail":
-                    "Credit limit must be greater than 0."
-                },
-                status=400
+                {"detail": "Credit limit must be greater than zero."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        card.credit_limit = credit_limit
+        # The model allows 2 decimal places and up to 12 digits total.
+        if new_limit.as_tuple().exponent < -2 or new_limit >= Decimal("10000000000"):##condition rejects values represented with more than two decimal places
+        
+            return Response(
+                {"detail": "Credit limit supports at most 2 decimal places and 10 digits before the decimal."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        card.save(
-            update_fields=["credit_limit"]
-        )
+        with db_transaction.atomic():
+            card = get_object_or_404(
+                Card.objects.select_for_update(),
+                id=card_id,
+            )
+
+            old_limit = card.credit_limit
+
+            if old_limit != new_limit:
+                card.credit_limit = new_limit
+                card.save(update_fields=["credit_limit"])
+
+                record_audit(
+                    actor=request.user,
+                    action=AuditLog.Action.CREDIT_LIMIT_UPDATED,
+                    target_type="Card",
+                    target_id=card.id,
+                    details={
+                        "old_credit_limit": str(old_limit),
+                        "new_credit_limit": str(new_limit),
+                    },
+                )
 
         return Response({
-            "message":
-                "Credit limit updated successfully.",
-            "credit_limit":
-                card.credit_limit,
+            "message": "Credit limit updated successfully.",
+            "credit_limit": str(card.credit_limit),
         })

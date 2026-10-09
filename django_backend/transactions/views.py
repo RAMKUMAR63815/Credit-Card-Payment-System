@@ -66,6 +66,14 @@ from cards.models import Card
 # Import low credit alert function
 from notifications.services import check_low_credit_alert
 
+from .fraud_service import evaluate_transaction
+from notifications.services import send_fraud_alert
+
+from rest_framework.pagination import PageNumberPagination #Display results page by page
+from rest_framework.exceptions import ValidationError
+from django.db.models import Q  #Combine database query conditions
+
+from datetime import timedelta
 
 # =========================================================
 # Payment Processing
@@ -156,6 +164,15 @@ class PaymentView(APIView):
             amount=amount,
             status="PENDING"
         )
+
+        
+        # Evaluate suspicious transaction patterns.
+        fraud_reasons = evaluate_transaction(django_transaction)
+
+        # Send an alert if the transaction was flagged.
+        if fraud_reasons:
+            send_fraud_alert(django_transaction)
+
 
         # FastAPI payment endpoint
         # "fastapi" is the Docker Compose service name
@@ -310,92 +327,196 @@ class PaymentView(APIView):
             status=status.HTTP_200_OK
         )
 
+class TransactionHistoryPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
+class AdminTransactionListView(ListAPIView):
+    serializer_class = TransactionSerializer
+    permission_classes = [IsAdminUser]
+    pagination_class = TransactionHistoryPagination
+
+    def get_queryset(self):
+        queryset = (
+            Transaction.objects
+            .select_related("user", "card")
+            .all()
+        )
+
+        params = self.request.query_params
+        status_filter = params.get("status", "").strip().upper()
+        search = params.get("search", "").strip()
+        min_amount = params.get("min_amount", "").strip()
+        max_amount = params.get("max_amount", "").strip()
+        start_date = params.get("start_date", "").strip()
+        end_date = params.get("end_date", "").strip()
+
+        if status_filter:
+            if status_filter not in {"SUCCESS", "FAILED", "PENDING"}:
+                raise ValidationError({
+                    "status": "Use SUCCESS, FAILED, or PENDING."
+                })
+            queryset = queryset.filter(status=status_filter)
+
+        if min_amount:
+            try:
+                minimum = Decimal(min_amount)
+            except Exception:
+                raise ValidationError({
+                    "min_amount": "Enter a valid amount."
+                })
+
+            if not minimum.is_finite() or minimum < 0:
+                raise ValidationError({
+                    "min_amount": "Enter a non-negative amount."
+                })
+            queryset = queryset.filter(amount__gte=minimum)
+
+        if max_amount:
+            try:
+                maximum = Decimal(max_amount)
+            except Exception:
+                raise ValidationError({
+                    "max_amount": "Enter a valid amount."
+                })
+
+            if not maximum.is_finite() or maximum < 0:
+                raise ValidationError({
+                    "max_amount": "Enter a non-negative amount."
+                })
+            queryset = queryset.filter(amount__lte=maximum)
+
+        if min_amount and max_amount and minimum > maximum:
+            raise ValidationError({
+                "amount": "Minimum amount cannot exceed maximum amount."
+            })
+
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=start_date)
+
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=end_date)
+
+        if search:
+            if not search.isdigit():
+                # Do not return every transaction for an unsupported search.
+                return queryset.none()
+
+            search_number = int(search)
+            conditions = (
+                Q(id=search_number)
+                | Q(payment_id=search_number)
+            )
+
+            if len(search) <= 4:
+                conditions |= Q(card__last_four=search)
+
+            queryset = queryset.filter(conditions)
+
+        return queryset.order_by("-created_at", "-id")
 
 # =========================================================
 # Transaction History
 # =========================================================
 
 # ListAPIView is used to return multiple transactions
+
 class TransactionHistoryView(ListAPIView):
-
-    # TransactionSerializer converts Transaction objects into JSON
     serializer_class = TransactionSerializer
-
-    # Only logged-in users can access transaction history
     permission_classes = [IsAuthenticated]
+    pagination_class = TransactionHistoryPagination
 
-    # get_queryset() decides which transactions should be returned
     def get_queryset(self):
-
-        # Get only transactions belonging to the logged-in user
-        queryset = Transaction.objects.filter(
-            user=self.request.user
+        queryset = (
+            Transaction.objects
+            .filter(user=self.request.user)
+            .select_related("card")
         )
 
-        # Get status value from URL query parameter
-        # Example: ?status=success
-        status_filter = self.request.query_params.get("status")
+        params = self.request.query_params
 
-        # Get minimum amount from URL
-        # Example: ?min_amount=500
-        min_amount = self.request.query_params.get("min_amount")
+        status_filter = params.get("status", "").strip().upper()
+        min_amount = params.get("min_amount", "").strip()
+        max_amount = params.get("max_amount", "").strip()
+        start_date = params.get("start_date", "").strip()
+        end_date = params.get("end_date", "").strip()
+        search = params.get("search", "").strip()
 
-        # Get maximum amount from URL
-        # Example: ?max_amount=5000
-        max_amount = self.request.query_params.get("max_amount")
+        # Validate transaction status.
+        allowed_statuses = {"SUCCESS", "FAILED", "PENDING"}
 
-        # Get starting date from URL
-        # Example: ?start_date=2026-09-01
-        start_date = self.request.query_params.get("start_date")
-
-        # Get ending date from URL
-        # Example: ?end_date=2026-09-30
-        end_date = self.request.query_params.get("end_date")
-
-        # If status filter was provided
         if status_filter:
+            if status_filter not in allowed_statuses:
+                raise ValidationError({
+                    "status": "Use SUCCESS, FAILED, or PENDING."
+                })
 
-            # Convert status to uppercase
-            # success -> SUCCESS
-            queryset = queryset.filter(
-                status=status_filter.upper()
-            )
+            queryset = queryset.filter(status=status_filter)
 
-        # If minimum amount was provided
+        # Validate and filter minimum amount.
         if min_amount:
+            try:
+                minimum = Decimal(min_amount)
+            except Exception:
+                raise ValidationError({
+                    "min_amount": "Enter a valid amount."
+                })
 
-            # Return amounts greater than or equal to min_amount
-            queryset = queryset.filter(
-                amount__gte=min_amount
-            )
+            if not minimum.is_finite() or minimum < 0:
+                raise ValidationError({
+                    "min_amount": "Amount must be a non-negative number."
+                })
 
-        # If maximum amount was provided
+            queryset = queryset.filter(amount__gte=minimum)
+
+        # Validate and filter maximum amount.
         if max_amount:
+            try:
+                maximum = Decimal(max_amount)
+            except Exception:
+                raise ValidationError({
+                    "max_amount": "Enter a valid amount."
+                })
 
-            # Return amounts less than or equal to max_amount
-            queryset = queryset.filter(
-                amount__lte=max_amount
-            )
+            if not maximum.is_finite() or maximum < 0:
+                raise ValidationError({
+                    "max_amount": "Amount must be a non-negative number."
+                })
 
-        # If start date was provided
+            queryset = queryset.filter(amount__lte=maximum)
+
+        if min_amount and max_amount and minimum > maximum:
+            raise ValidationError({
+                "amount": "min_amount cannot exceed max_amount."
+            })
+
+        # Filter by date.
         if start_date:
-
-            # Return transactions on or after this date
             queryset = queryset.filter(
                 created_at__date__gte=start_date
             )
 
-        # If end date was provided
         if end_date:
-
-            # Return transactions on or before this date
             queryset = queryset.filter(
                 created_at__date__lte=end_date
             )
 
-        # Sort transactions by newest first
-        return queryset.order_by("-created_at")
+        # Search by transaction ID, payment ID, or card's last four digits.
+        if search:
+            search_conditions = Q()
 
+            if search.isdigit():
+                search_conditions |= Q(id=int(search))
+                search_conditions |= Q(payment_id=int(search))
+
+            if len(search) <= 4 and search.isdigit():
+                search_conditions |= Q(card__last_four=search)
+
+            queryset = queryset.filter(search_conditions)
+
+        return queryset.order_by("-created_at", "-id")
 
 # =========================================================
 # Admin CSV Export
@@ -553,109 +674,113 @@ def daily_payment_summary(request):
 # =========================================================
 
 # This API is used by the React Admin Dashboard
-class AdminPaymentSummaryAPIView(APIView):
 
-    # Only admin/staff users can access this API
-    # JWT authentication is handled by DRF
+class AdminPaymentSummaryAPIView(APIView):
     permission_classes = [IsAdminUser]
 
-    # Handle GET requests
     def get(self, request):
+        today = timezone.localdate()
+        start_date = today - timedelta(days=6)
 
-        # -----------------------------------------------------
-        # TOTAL TRANSACTIONS
-        # -----------------------------------------------------
+        all_transactions = Transaction.objects.all()
 
-        # Count all transactions
-        total_transactions = Transaction.objects.count()
-
-        # -----------------------------------------------------
-        # TOTAL AMOUNT
-        # -----------------------------------------------------
-
-        # Calculate the total amount of all transactions
-        total_amount = (
-            Transaction.objects.aggregate(
-                total=Sum("amount")
-            )["total"]
-            or Decimal("0.00")
+        totals = all_transactions.aggregate(
+            total_amount=Sum("amount"),
+            successful_amount=Sum(
+                "amount",
+                filter=models.Q(status="SUCCESS"),
+            ),
+            total_transactions=Count("id"),
+            successful_transactions=Count(
+                "id",
+                filter=models.Q(status="SUCCESS"),
+            ),
+            failed_transactions=Count(
+                "id",
+                filter=models.Q(status="FAILED"),
+            ),
+            pending_transactions=Count(
+                "id",
+                filter=models.Q(status="PENDING"),
+            ),
         )
 
-        # -----------------------------------------------------
-        # SUCCESSFUL TRANSACTIONS
-        # -----------------------------------------------------
-
-        successful_transactions = Transaction.objects.filter(
-            status="SUCCESS"
-        ).count()
-
-        # -----------------------------------------------------
-        # FAILED TRANSACTIONS
-        # -----------------------------------------------------
-
-        failed_transactions = Transaction.objects.filter(
-            status="FAILED"
-        ).count()
-
-        # -----------------------------------------------------
-        # RECENT TRANSACTIONS
-        # -----------------------------------------------------
-
-        # Get the latest five transactions
-        recent_transactions = (
-            Transaction.objects
-            .select_related("user", "card")
-            .order_by("-created_at")[:5]
-        )
-
-        # Create an empty list
-        # We will add transaction information to this list
-        recent_data = []
-
-        # Loop through the latest transactions
-        for transaction in recent_transactions:
-
-            # Add transaction information
-            recent_data.append(
-                {
-                    # Django transaction ID
-                    "id": transaction.id,
-
-                    # FastAPI payment ID
-                    "payment_id": transaction.payment_id,
-
-                    # Convert Decimal to string
-                    # so it can safely be returned as JSON
-                    "amount": str(transaction.amount),
-
-                    # SUCCESS / FAILED / PENDING
-                    "status": transaction.status,
-
-                    # Transaction date and time
-                    "created_at": transaction.created_at,
-
-                    # Username of the user
-                    "username": transaction.user.username,
-                }
+        # Daily data for the last seven calendar days.
+        daily_queryset = (
+            all_transactions
+            .filter(created_at__date__gte=start_date)
+            .annotate(
+                date=TruncDate(
+                    "created_at",
+                    tzinfo=timezone.get_current_timezone(),
+                )
             )
+            .values("date")
+            .annotate(
+                total=Count("id"),
+                successful=Count(
+                    "id",
+                    filter=models.Q(status="SUCCESS"),
+                ),
+                failed=Count(
+                    "id",
+                    filter=models.Q(status="FAILED"),
+                ),
+                successful_amount=Sum(
+                    "amount",
+                    filter=models.Q(status="SUCCESS"),
+                ),
+            )
+            .order_by("date")
+        )
 
-        # -----------------------------------------------------
-        # RETURN JSON RESPONSE
-        # -----------------------------------------------------
+        daily_data = [
+            {
+                "date": row["date"].isoformat(),
+                "total": row["total"],
+                "successful": row["successful"],
+                "failed": row["failed"],
+                "successful_amount": str(
+                    row["successful_amount"] or Decimal("0.00")
+                ),
+            }
+            for row in daily_queryset
+        ]
+
+        recent_transactions = (
+            all_transactions
+            .select_related("user", "card")
+            .order_by("-created_at", "-id")[:5]
+        )
+
+        recent_data = [
+            {
+                "id": transaction.id,
+                "payment_id": transaction.payment_id,
+                "amount": str(transaction.amount),
+                "status": transaction.status,
+                "created_at": transaction.created_at,
+                "username": transaction.user.username,
+            }
+            for transaction in recent_transactions
+        ]
 
         return Response(
             {
-                "total_transactions": total_transactions,
-
-                "total_amount": str(total_amount),
-
-                "successful_transactions": successful_transactions,
-
-                "failed_transactions": failed_transactions,
-
+                "total_transactions": totals["total_transactions"],
+                "total_amount": str(
+                    totals["total_amount"] or Decimal("0.00")
+                ),
+                "successful_amount": str(
+                    totals["successful_amount"] or Decimal("0.00")
+                ),
+                "successful_transactions": totals[
+                    "successful_transactions"
+                ],
+                "failed_transactions": totals["failed_transactions"],
+                "pending_transactions": totals["pending_transactions"],
+                "daily_analytics": daily_data,
                 "recent_transactions": recent_data,
             },
-
-            # HTTP 200 = successful request
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
